@@ -1,0 +1,245 @@
+﻿@{
+    ViewData["Title"] = "Personel İş Yükü Takvimi";
+}
+
+<!-- FullCalendar CSS Kütüphanesi -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
+
+<style>
+    /* 1. Takvimin ekrana tam sığması ve taşmaması için yükseklik optimizasyonu */
+    #calendar {
+        max-height: 75vh;
+        background-color: #fff;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    /* 2. Bugünün (29 Temmuz) varsayılan sarı arka plan rengini kaldırıp beyaz yapma */
+    .fc-day-today {
+        background-color: #ffffff !important;
+    }
+
+    /* Takvim başlıklarının kurumsal görünmesi için ufak bir stil */
+    .fc-col-header-cell-cushion {
+        color: #333 !important;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    
+    .fc-daygrid-day-number {
+        color: #495057 !important;
+        text-decoration: none !important;
+        font-weight: 500;
+    }
+
+    /* Görev kutularının tıklanabilir el simgesi çıkması ve şık durması için */
+    .fc-event {
+        cursor: pointer !important;
+        padding: 2px 4px;
+        font-size: 12px !important;
+        border-radius: 4px !important;
+    }
+</style>
+
+<div class="container-fluid mt-3 px-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header py-3 bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="m-0 fw-bold"><i class="bi bi-calendar3 text-success me-2"></i> Personel İş Yükü Takvimi</h5>
+            <a href="@Url.Action("Index", "Planlama")" class="btn btn-sm btn-outline-light">Planlama Paneline Dön</a>
+        </div>
+        <div class="card-body bg-light">
+            <!-- Personel Seçim Alanı -->
+           <div class="row mb-3 align-items-end">
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label fw-bold text-dark"><i class="bi bi-person-fill text-primary"></i> Personel Seçimi:</label>
+                <div class="input-group shadow-sm dropdown personel-input-group">
+                    <input type="text" id="takvimPersonelSearch" class="form-control personel-filtre-input"
+                           placeholder="Personel adı yazarak arayın..." data-bs-toggle="dropdown" autocomplete="off" />
+                    <i class="bi bi-chevron-down personel-filtre-chevron"></i>
+                    <input type="hidden" id="takvimPersonelId" />
+                    <ul class="dropdown-menu w-100 personel-filtre-menu" id="takvimPersonelMenu">
+                        @if (ViewBag.Personeller != null)
+                        {
+                            foreach (var personel in ViewBag.Personeller)
+                            {
+                                <li><button class="dropdown-item filter-option-item" type="button" data-value="@personel.USER_ID" data-text="@personel.FIRST_NAME @personel.LAST_NAME">@personel.FIRST_NAME @personel.LAST_NAME</button></li>
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+            <!-- Takvimin Çizileceği Alan -->
+            <div id="calendar"></div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/tr.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var calendarEl = document.getElementById('calendar');
+            var calendar;
+
+            // Sabit renk havuzu (Her farklı plan hep aynı renkte kalacak)
+            var renkHavuzu = ["#3498db", "#2ecc71", "#9b59b6", "#e67e22", "#1abc9c", "#e74c3c", "#f1c40f", "#34495e", "#7f8c8d"];
+
+            function initCalendar(eventsData) {
+                if (calendar) {
+                    calendar.destroy();
+                }
+
+                calendar = new FullCalendar.Calendar(calendarEl, {
+                    locale: 'tr',
+                    initialView: 'dayGridMonth',
+                    height: 'auto',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek'
+                    },
+                    events: eventsData,
+                    eventClick: function (info) {
+                        if (info.event.extendedProps.referansTaskId) {
+                            window.location.href = '/IsDetay/Index/' + info.event.extendedProps.referansTaskId;
+                        } else {
+                            alert("Bu görevin bir İş Takip referans ID'si bulunmamaktadır.");
+                        }
+                    },
+                    eventDidMount: function (info) {
+                        info.el.setAttribute('title', info.event.title);
+                    }
+                });
+
+                calendar.render();
+            }
+
+            initCalendar([]); // İlk başta boş yükle
+
+            // 🎯 Personel seçilince takvim verisini çeken fonksiyon
+            function personelSecildi(selectedPersonelId) {
+                if (!selectedPersonelId) {
+                    initCalendar([]);
+                    return;
+                }
+
+                $.ajax({
+                    url: '/Planlama/GetPersonelTakvimData',
+                    type: 'GET',
+                    data: { personelId: selectedPersonelId },
+                    success: function (response) {
+                        console.log("Gelen Ham Veri:", response);
+
+                        if (response && response.success === false) {
+                            alert("Hata: " + response.message);
+                            initCalendar([]);
+                            return;
+                        }
+
+                        if (!response || !Array.isArray(response) || response.length === 0) {
+                            console.log("Bu personele ait planlı iş bulunamadı.");
+                            initCalendar([]);
+                            return;
+                        }
+
+                        var mappedEvents = [];
+
+                        response.forEach(function (item) {
+                            var planIsId = item.planIsId || item.PlanIsId || 0;
+                            var aciklama = item.aciklama || item.Aciklama || "İsimsiz Görev";
+                            var projeAdi = item.projeAdi || item.ProjeAdi || "-";
+                            var referansTaskId = item.referansTaskId || item.ReferansTaskId || null;
+
+                            var rawAcilis = item.acilisTarihi || item.AcilisTarihi;
+                            var rawBitis = item.sonBitisTarihi || item.SonBitisTarihi;
+
+                            if (!rawAcilis || !rawBitis) return;
+
+                            var startDateStr = rawAcilis.toString().includes('T') ? rawAcilis.split('T')[0] : rawAcilis.substring(0, 10);
+                            var bitisDateStr = rawBitis.toString().includes('T') ? rawBitis.split('T')[0] : rawBitis.substring(0, 10);
+
+                            var current = new Date(startDateStr);
+                            var son = new Date(bitisDateStr);
+
+                            var sabitRenk = renkHavuzu[planIsId % renkHavuzu.length];
+                            var title = (projeAdi !== "-" ? "[" + projeAdi + "] " : "") + aciklama;
+
+                            while (current <= son) {
+                                var gunStr = current.toISOString().split('T')[0];
+                                var gunSonrasi = new Date(current);
+                                gunSonrasi.setDate(gunSonrasi.getDate() + 1);
+                                var gunSonrasiStr = gunSonrasi.toISOString().split('T')[0];
+
+                                mappedEvents.push({
+                                    id: planIsId + '_' + gunStr,
+                                    title: title,
+                                    start: gunStr,
+                                    end: gunSonrasiStr,
+                                    backgroundColor: sabitRenk,
+                                    borderColor: sabitRenk,
+                                    textColor: '#ffffff',
+                                    extendedProps: {
+                                        referansTaskId: referansTaskId,
+                                        gerçekPlanIsId: planIsId
+                                    }
+                                });
+
+                                current.setDate(current.getDate() + 1);
+                            }
+                        });
+
+                        console.log("Haritalanmış Veri (FullCalendar):", mappedEvents);
+                        initCalendar(mappedEvents);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Ajax Hatası:", error, xhr.responseText);
+                        alert("Veriler yüklenirken bir iletişim hatası oluştu.");
+                    }
+                });
+            }
+
+            // 🎯 Aranabilir Personel Dropdown Kurulumu (Index.cshtml'deki pattern ile aynı)
+            var input = document.getElementById('takvimPersonelSearch');
+            var menu = document.getElementById('takvimPersonelMenu');
+            var hidden = document.getElementById('takvimPersonelId');
+
+            if (input && menu && hidden) {
+                var items = menu.getElementsByClassName('filter-option-item');
+
+                input.addEventListener('click', function () {
+                    var bootstrapDropdown = new bootstrap.Dropdown(input);
+                    bootstrapDropdown.show();
+                });
+
+                input.addEventListener('input', function () {
+                    var filter = input.value.toLowerCase();
+                    var bootstrapDropdown = new bootstrap.Dropdown(input);
+                    bootstrapDropdown.show();
+
+                    for (var i = 0; i < items.length; i++) {
+                        var text = items[i].textContent || items[i].innerText;
+                        items[i].style.display = (text.toLowerCase().indexOf(filter) > -1) ? "" : "none";
+                    }
+                });
+
+                menu.addEventListener('click', function (e) {
+                    if (e.target && e.target.classList.contains('filter-option-item')) {
+                        var selectedText = e.target.getAttribute('data-text');
+                        var selectedValue = e.target.getAttribute('data-value');
+
+                        input.value = selectedText;
+                        hidden.value = selectedValue;
+
+                        personelSecildi(selectedValue);
+                    }
+                });
+            }
+        });
+    </script>
+}

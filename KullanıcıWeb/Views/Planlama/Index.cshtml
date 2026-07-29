@@ -1,0 +1,762 @@
+﻿@model List<KullanıcıWeb.Models.PlanlamaIs>
+@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    ViewData["Title"] = "Planlama Paneli";
+}
+
+<style>
+    /* 1. Tüm Seçim ve Girdi Alanlarının Standart Yazı, Çerçeve ve Arka Plan Rengini Eşitleme */
+    .custom-form-input,
+    .form-select,
+    .form-control {
+        color: #212529 !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 0.375rem !important;
+        font-size: 14px !important;
+        background-color: #fff !important;
+    }
+
+        /* Inputların içindeki placeholder yazı rengini sabitleme */
+        .custom-form-input::placeholder,
+        .form-control::placeholder {
+            color: #6c757d !important;
+            font-weight: normal !important;
+            opacity: 1;
+        }
+
+        /* Tıklandığında Çıkan Çerçeve Renklerini Yeşile Eşitleme */
+        .custom-form-input:focus,
+        .form-select:focus,
+        .form-control:focus {
+            border-color: #198754 !important;
+            box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25) !important;
+            color: #212529 !important;
+            outline: 0;
+        }
+
+    /* Özel Ok Simgesinin Tıklamayı Engellememesi ve Renginin Eşitlenmesi */
+    .input-ok-kapsayici i {
+        pointer-events: none;
+        color: #6c757d !important;
+    }
+
+    /* --- ALT GÖREV (SUBTASK) GÖRSEL AYRIMI --- */
+    .subtask-row > td {
+        box-shadow: inset 0 0 0 9999px rgba(76, 175, 80, 0.15) !important;
+        background-color: #f1f8e9 !important;
+        font-size: 12px !important;
+        border-top: 1px dashed #c8e6c9 !important;
+        border-bottom: 1px dashed #c8e6c9 !important;
+    }
+
+    /* Süresi geçen satırları soluklaştırma efekti */
+    .plan-suresi-gecti {
+        opacity: 0.65 !important;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+        .plan-suresi-gecti:hover {
+            opacity: 0.95 !important;
+        }
+
+    /* 🎯 Planlanmamış (Havuzdaki) İşler İçin Kurumsal Arka Plan Tonu */
+    .tarih-bekliyor-row {
+        background-color: #fffde7 !important;
+    }
+
+    /* 🎯 Personel Arama Kutusu Stili (ID/Filtre Kutularıyla Hizalı, Bootstrap dropdown uyumlu) */
+    .personel-input-group {
+        position: relative;
+    }
+
+    .personel-filtre-input {
+        border: 1px solid #ced4da !important;
+        border-left: none !important;
+        border-radius: 0 0.375rem 0.375rem 0 !important;
+        font-size: 14px !important;
+        color: #212529 !important;
+        padding-right: 30px !important;
+    }
+
+        .personel-filtre-input:focus {
+            border-color: #198754 !important;
+            box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.2) !important;
+            outline: 0;
+            z-index: 3;
+        }
+
+    .personel-filtre-chevron {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+        pointer-events: none;
+        font-size: 13px;
+        z-index: 5;
+    }
+
+    .personel-filtre-menu {
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 0.5rem !important;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.12) !important;
+        padding: 6px !important;
+        margin-top: 4px !important;
+        max-height: 260px;
+        overflow-y: auto;
+    }
+
+        .personel-filtre-menu .filter-option-item {
+            border-radius: 0.4rem;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+            .personel-filtre-menu .filter-option-item:hover {
+                background-color: #e8f5e9 !important;
+                color: #198754 !important;
+            }
+</style>
+
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4">
+        <div>
+            <h2 class="text-dark font-weight-bold">📋 Planlama Paneli</h2>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-controller="Planlama" asp-action="TakvimGörünümü" class="btn btn-info d-flex align-items-center gap-2 font-weight-bold shadow-sm text-white">
+                <i class="bi bi-calendar3"></i> Personel İş Yükü Takvimi
+            </a>
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-2 font-weight-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#yeniPlanModal">
+                <i class="bi bi-plus-circle-fill"></i> Yeni Plan Ekle
+            </button>
+            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-sm d-flex align-items-center">⬅️ Ana Sayfaya Dön</a>
+        </div>
+    </div>
+
+    <!-- Bildirim Mesajları -->
+    @if (TempData["Mesaj"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["Mesaj"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["HataMesajı"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>Hata!</strong> @TempData["HataMesajı"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- 🔍 Üst Arama ve Filtreleme Alanı -->
+    <div class="card mb-4 shadow-sm border-0 bg-light">
+        <div class="card-body py-3">
+            <div class="row g-3 align-items-center">
+                <!-- ID Arama Kutusu -->
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-white border-secondary text-success fw-bold" style="font-size: 14px;">
+                            <i class="bi bi-search"></i> &nbsp;ID:
+                        </span>
+                        <input type="number" id="tabloIdSearchInput" class="form-control border-secondary font-weight-bold text-success" placeholder="ID..." min="1" autocomplete="off" />
+                    </div>
+                </div>
+
+                <!-- Durum Filtreleme Kutusu -->
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-white text-success fw-bold" style="font-size: 14px;">
+                            <i class="bi bi-funnel"></i> &nbsp;Filtre:
+                        </span>
+                        <select id="planFiltresi" class="form-select border-secondary font-weight-bold">
+                            <option value="all" selected>Tüm Planlar</option>
+                            <option value="active">Süresi Devam Edenler</option>
+                            <option value="expired">Süresi Geçenler (Bitenler)</option>
+                            <option value="planlandi">Planlandı</option>
+                            <option value="planlanmadi">Planlanmadı</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 🎯 Atanan Personel Filtresi (ID/Filtre Kutularıyla Hizalı, Aranabilir) -->
+                <div class="col-lg-3 col-md-5 col-sm-8">
+                    <div class="input-group shadow-sm dropdown personel-input-group">
+                        <span class="input-group-text bg-white text-success fw-bold" style="font-size: 14px;">
+                            <i class="bi bi-person-check"></i> &nbsp;Personel:
+                        </span>
+                        <input type="text" id="personelFiltreSearch" class="form-control personel-filtre-input" placeholder="Tüm Personeller" data-bs-toggle="dropdown" autocomplete="off" />
+                        <i class="bi bi-chevron-down personel-filtre-chevron"></i>
+                        <input type="hidden" id="personelFiltresi" value="all" />
+                        <ul class="dropdown-menu w-100 personel-filtre-menu" id="personelFiltreMenu">
+                            <li><button class="dropdown-item filter-option-item fw-bold text-success" type="button" data-value="all" data-text="Tüm Personeller">Tüm Personeller</button></li>
+                            <li><button class="dropdown-item filter-option-item text-muted" type="button" data-value="atanmamis" data-text="Atanmamış">Atanmamış</button></li>
+                            @if (ViewBag.Personeller != null)
+                            {
+                                foreach (var personel in ViewBag.Personeller)
+                                {
+                                    <li><button class="dropdown-item filter-option-item" type="button" data-value="@personel.USER_ID" data-text="@personel.FIRST_NAME @personel.LAST_NAME">@personel.FIRST_NAME @personel.LAST_NAME</button></li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Aktif Plan Sayacı -->
+                <div class="col-lg-4 col-md-12 text-lg-end text-md-center mt-md-2 mt-lg-0">
+                    <span class="badge bg-warning text-dark fw-bold px-3 py-2 rounded shadow-sm" style="font-size: 14px;">
+                        <i class="bi bi-layers-half me-1"></i> @Model.Count Aktif Plan
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📊 Planlama Listesi Tablosu -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped table-bordered mb-0 align-middle small" id="planTablosu">
+                    <thead class="table-dark text-center text-nowrap">
+                        <tr>
+                            <th style="width: 70px;">ID</th>
+                            <th style="width: 90px;">Ref. İş ID</th>
+                            <th>Flag</th>
+                            <th>Açıklama</th>
+                            <th>Proje</th>
+                            <th>Organizasyon</th>
+                            <th>Kategori</th>
+                            <th>Bildiren</th>
+                            <th>Açılış Tarihi</th>
+                            <th>Bitiş Tarihi</th>
+                            <th>Atanan Personel</th>
+                            <th>Önem Der.</th>
+                            <th>Öncelik</th>
+                            <th>Durum</th>
+                            <th>Kalan Gün</th>
+                            <th style="width: 90px;">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var plan in Model)
+                            {
+                                bool isPlanli = plan.Flag == "P";
+                                int kalanGun = 0;
+                                bool suresiGectiMi = false;
+
+                                // 🎯 KOD DÜZELTMESİ: Tarih alanlarının modeldeki (DateTime veya DateTime?) durumuna göre güvenli okuma
+                                if (isPlanli && plan.SonBitisTarihi != null)
+                                {
+                                    // Nullable veya normal DateTime ayrımı yapmaksızın doğrudan .Date üzerinden işlem yürütüyoruz.
+                                    DateTime bitisTarihi = Convert.ToDateTime(plan.SonBitisTarihi);
+                                    kalanGun = (bitisTarihi.Date - DateTime.Now.Date).Days;
+                                    suresiGectiMi = kalanGun < 0;
+                                }
+
+                                bool isSubTask = !string.IsNullOrEmpty(plan.Aciklama) && plan.Aciklama.StartsWith("↳");
+
+                                // Satır stil atamaları
+                                string rowClass = "";
+                                if (!isPlanli) rowClass = "tarih-bekliyor-row";
+                                else if (suresiGectiMi) rowClass = "plan-suresi-gecti text-muted";
+
+                                rowClass += isSubTask ? " subtask-row" : " master-row-marker";
+
+                                string kalanGunClass = !isPlanli ? "bg-warning text-dark" : (suresiGectiMi ? "bg-danger text-white" : (kalanGun <= 3 ? "bg-warning text-dark" : "bg-info text-white"));
+                                string kalanGunMetni = !isPlanli ? "Tarih Bekliyor" : (suresiGectiMi ? "Süresi Geçti" : (kalanGun == 0 ? "Bugün!" : $"{kalanGun} Gün"));
+
+                                <tr class="@rowClass" data-id="@plan.PlanIsId" data-expired="@(suresiGectiMi ? "true" : "false")" data-planli="@(isPlanli ? "true" : "false")" data-atanan="@(plan.AtananPersonelId?.ToString() ?? "")">
+                                    <td class="text-center font-weight-bold">@plan.PlanIsId</td>
+
+                                    <td class="text-center font-weight-bold">
+                                        @if (plan.ReferansTaskId.HasValue && plan.ReferansTaskId > 0)
+                                        {
+                                            <a asp-controller="IsDetay" asp-action="Index" asp-route-id="@plan.ReferansTaskId" class="badge bg-primary text-white text-decoration-none">
+                                                #@plan.ReferansTaskId
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+
+                                    <td class="text-center">
+                                        <span class="badge @(isPlanli ? "bg-success" : "bg-secondary") shadow-sm">
+                                            @(isPlanli ? "Planlandı" : "Planlanmadı")
+                                        </span>
+                                    </td>
+
+                                    <td class="font-weight-bold text-wrap" style="min-width: 180px;">
+                                        @if (!isSubTask && plan.ReferansTaskId.HasValue && plan.ReferansTaskId > 0)
+                                        {
+                                            <i class="bi bi-box-arrow-up-right me-1 text-primary" style="font-size: 0.8rem;"></i>
+                                        }
+                                        <span class="text-primary">@plan.Aciklama</span>
+                                    </td>
+                                    <td>@plan.ProjeAdi</td>
+                                    <td>@plan.Organizasyon</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border">@plan.Kategori</span>
+                                    </td>
+                                    <td class="text-muted">@plan.BildirenKullaniciAdSoyad</td>
+
+                                    <!-- AÇILIŞ TARİHİ SÜTUNU -->
+                                    <td class="text-center text-nowrap">
+                                        @if (isPlanli && plan.AcilisTarihi != null)
+                                        {
+                                            @Convert.ToDateTime(plan.AcilisTarihi).ToString("dd.MM.yyyy")
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 fw-bold shadow-sm" style="font-size:11px;" onclick="hizliPlanlaModalAc(@plan.PlanIsId, '@plan.Aciklama')">
+                                                <i class="bi bi-calendar-plus"></i> Tarih Seç
+                                            </button>
+                                        }
+                                    </td>
+
+                                    <!-- BİTİŞ TARİHİ SÜTUNU -->
+                                    <td class="text-center text-nowrap">
+                                        @if (isPlanli && plan.SonBitisTarihi != null)
+                                        {
+                                            @Convert.ToDateTime(plan.SonBitisTarihi).ToString("dd.MM.yyyy")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+
+                                    <td class="text-center font-weight-bold text-primary text-nowrap">
+                                        <i class="bi bi-person-badge"></i> @(string.IsNullOrEmpty(plan.AtananPersonelAdSoyad) ? "Atanmamış" : plan.AtananPersonelAdSoyad)
+                                    </td>
+                                    <td class="text-center text-muted">@plan.OnemDerecesi</td>
+                                    <td class="text-center">
+                                        <span class="badge @(plan.Oncelik == "Yüksek" ? "bg-danger text-white" : (plan.Oncelik == "Orta" ? "bg-warning text-dark" : "bg-secondary")) px-2 py-1">
+                                            @plan.Oncelik
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success">Açık</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge @kalanGunClass fw-bold px-2 py-1">
+                                            @kalanGunMetni
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger shadow-sm" title="Bu planı sil" onclick="planSilOnay(@plan.PlanIsId, '@plan.Aciklama')">
+                                            <i class="bi bi-trash3-fill"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="16" class="text-center text-muted py-4">Kayıtlı aktif planlama maddesi bulunamadı.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 🎯 1. MANUEL YENİ PLAN EKLEME MODALI (Çift Tarih Seçimi Aktif) -->
+<div class="modal fade" id="yeniPlanModal" tabindex="-1" aria-labelledby="yeniPlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white py-3">
+                <h5 class="modal-title fw-bold" id="yeniPlanModalLabel">
+                    <i class="bi bi-plus-circle text-success me-2"></i> Yeni Plan Oluştur
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+
+            <form asp-controller="Planlama" asp-action="YeniPlanEkle" method="post">
+                <div class="modal-body bg-light px-4 py-4">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label font-weight-bold">Plan / Görev Açıklaması</label>
+                            <input type="text" name="Aciklama" class="form-control" required placeholder="Plan detayını veya başlığını giriniz..." />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold text-success"><i class="bi bi-calendar-check"></i> Açılış Tarihi</label>
+                            <input type="date" name="AcilisTarihi" class="form-control fw-bold text-dark" required value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold text-danger"><i class="bi bi-calendar-event"></i> Hedef Bitiş Tarihi (Deadline)</label>
+                            <input type="date" name="SonBitisTarihi" class="form-control fw-bold text-dark" required />
+                        </div>
+
+                        <div class="col-md-6 dropdown">
+                            <label class="form-label font-weight-bold text-dark">Proje</label>
+                            <input type="text" id="planProjectSearch" class="form-control dropdown-toggle custom-form-input" placeholder="Proje Seçin..." data-bs-toggle="dropdown" autocomplete="off" />
+                            <input type="hidden" name="ProjeAdi" id="planGizliProjeAdi" />
+                            <ul class="dropdown-menu w-100 shadow-sm" id="planProjectMenu" style="max-height: 200px; overflow-y: auto;">
+                                <li><button class="dropdown-item option-item text-muted" type="button" data-value="-" data-text="-">-- Projesiz Plan --</button></li>
+                                @if (ViewBag.Projeler != null)
+                                {
+                                    foreach (var prj in ViewBag.Projeler)
+                                    {
+                                        <li><button class="dropdown-item option-item" type="button" data-value="@prj.ProjectName" data-text="@prj.ProjectName">@prj.ProjectName</button></li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+
+                        <div class="col-md-6 dropdown">
+                            <label class="form-label font-weight-bold text-dark">Organizasyon</label>
+                            <input type="text" id="planOrgSearch" class="form-control dropdown-toggle custom-form-input" placeholder="Organizasyon Seçin..." data-bs-toggle="dropdown" autocomplete="off" />
+                            <input type="hidden" name="Organizasyon" id="planGizliOrg" />
+                            <ul class="dropdown-menu w-100 shadow-sm" id="planOrgMenu" style="max-height: 200px; overflow-y: auto;">
+                                <li><button class="dropdown-item option-item text-muted" type="button" data-value="-" data-text="-">-- Organizasyon Yok --</button></li>
+                                @if (ViewBag.Organizasyonlar != null)
+                                {
+                                    foreach (var org in ViewBag.Organizasyonlar)
+                                    {
+                                        <li><button class="dropdown-item option-item" type="button" data-value="@org.OrgName" data-text="@org.OrgName">@org.OrgName</button></li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Kategori</label>
+                            <select name="Kategori" class="form-select border-secondary">
+                                <option value="-">Kategori Seçin...</option>
+                                @if (ViewBag.Kategoriler != null)
+                                {
+                                    foreach (var kat in ViewBag.Kategoriler)
+                                    {
+                                        <option value="@kat.CategoryName">@kat.CategoryName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 dropdown">
+                            <label class="form-label font-weight-bold text-dark">Atanacak Kişi</label>
+                            <input type="text" id="planUserSearch" class="form-control dropdown-toggle custom-form-input" placeholder="Personel Seçin..." data-bs-toggle="dropdown" autocomplete="off" />
+                            <input type="hidden" name="AtananPersonelId" id="planGizliAtananPersonelId" />
+                            <ul class="dropdown-menu w-100 shadow-sm" id="planUserMenu" style="max-height: 200px; overflow-y: auto;">
+                                <li><button class="dropdown-item option-item text-muted" type="button" data-value="" data-text="">-- Personel Seçilmedi --</button></li>
+                                @if (ViewBag.Personeller != null)
+                                {
+                                    foreach (var personel in ViewBag.Personeller)
+                                    {
+                                        <li><button class="dropdown-item option-item" type="button" data-value="@personel.USER_ID" data-text="@personel.FIRST_NAME @personel.LAST_NAME">@personel.FIRST_NAME @personel.LAST_NAME</button></li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-weight-bold">Önem Derecesi</label>
+                            <select name="OnemDerecesi" class="form-select">
+                                <option value="Normal" selected>Normal</option>
+                                <option value="Kritik">Kritik</option>
+                                <option value="Düşük">Düşük</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-weight-bold">Öncelik</label>
+                            <select name="Oncelik" class="form-select">
+                                <option value="Düşük" selected>Düşük</option>
+                                <option value="Orta">Orta</option>
+                                <option value="Yüksek">Yüksek</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-weight-bold">Durum</label>
+                            <select name="DurumId" class="form-select border-secondary" required>
+                                <option value="">Durum Seçin...</option>
+                                @if (ViewBag.Durumlar != null)
+                                {
+                                    foreach (var d in ViewBag.Durumlar)
+                                    {
+                                        <option value="@d.DurumId">@d.DurumName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top-0 pt-0 pb-4 pe-4">
+                    <button type="button" class="btn btn-secondary font-weight-bold" data-bs-dismiss="modal">Vazgeç</button>
+                    <button type="submit" class="btn btn-success font-weight-bold px-4">
+                        <i class="bi bi-save-fill"></i> Plan Oluştur
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 🎯 2. HAVUZDAKİ İŞLER İÇİN PROFESYONEL ZAMANLAMA MODALI -->
+<div class="modal fade" id="hizliPlanlaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white py-3">
+                <h5 class="modal-title fw-bold"><i class="bi bi-calendar2-range-fill"></i> Görevi Takvime İşle</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <input type="hidden" id="modalPlanIsId" />
+                <div class="mb-3">
+                    <label class="form-label text-muted fw-bold">Seçilen Plan:</label>
+                    <div id="modalPlanAciklama" class="alert alert-secondary py-2 fw-bold text-dark mb-0" style="font-size: 13px;"></div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold text-success">Açılış Tarihi</label>
+                        <input type="date" id="modalAcilisTarihi" class="form-control fw-bold" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold text-danger">Bitiş Tarihi (Deadline)</label>
+                        <input type="date" id="modalBitisTarihi" class="form-control fw-bold" />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top-0">
+                <button type="button" class="btn btn-secondary font-weight-bold" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-success font-weight-bold px-4" onclick="hizliPlanlamaKaydet()">
+                    <i class="bi bi-check-all"></i> Onayla ve Planla
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+<script>
+    function setupSearchableDropdown(inputId, menuId, hiddenId) {
+        var input = document.getElementById(inputId);
+        var menu = document.getElementById(menuId);
+        var hidden = document.getElementById(hiddenId);
+        if (!input || !menu) return;
+        var items = menu.getElementsByClassName('option-item');
+
+        input.addEventListener('click', function () {
+            var bootstrapDropdown = new bootstrap.Dropdown(input);
+            bootstrapDropdown.show();
+        });
+
+        input.addEventListener('input', function () {
+            var filter = input.value.toLowerCase();
+            var bootstrapDropdown = new bootstrap.Dropdown(input);
+            bootstrapDropdown.show();
+
+            for (var i = 0; i < items.length; i++) {
+                var text = items[i].textContent || items[i].innerText;
+                if (text.toLowerCase().indexOf(filter) > -1) {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        });
+
+        menu.addEventListener('click', function (e) {
+            if (e.target && e.target.classList.contains('option-item')) {
+                var selectedText = e.target.getAttribute('data-text');
+                var selectedValue = e.target.getAttribute('data-value');
+
+                input.value = selectedText;
+                hidden.value = selectedValue;
+            }
+        });
+    }
+
+    // Dropdown Kurulumları (Yeni Plan / Hızlı Planlama Modalları İçin)
+    setupSearchableDropdown('planProjectSearch', 'planProjectMenu', 'planGizliProjeAdi');
+    setupSearchableDropdown('planOrgSearch', 'planOrgMenu', 'planGizliOrg');
+    setupSearchableDropdown('planUserSearch', 'planUserMenu', 'planGizliAtananPersonelId');
+
+    // 🎯 Tablo Üstü Personel Filtresi Kurulumu (Aranabilir + Anlık Filtreleme)
+    function setupPersonelFiltreDropdown() {
+        var input = document.getElementById('personelFiltreSearch');
+        var menu = document.getElementById('personelFiltreMenu');
+        var hidden = document.getElementById('personelFiltresi');
+        if (!input || !menu || !hidden) return;
+        var items = menu.getElementsByClassName('filter-option-item');
+
+        input.addEventListener('click', function () {
+            var bootstrapDropdown = new bootstrap.Dropdown(input);
+            bootstrapDropdown.show();
+        });
+
+        input.addEventListener('input', function () {
+            var filter = input.value.toLowerCase();
+            var bootstrapDropdown = new bootstrap.Dropdown(input);
+            bootstrapDropdown.show();
+
+            for (var i = 0; i < items.length; i++) {
+                var text = items[i].textContent || items[i].innerText;
+                items[i].style.display = (text.toLowerCase().indexOf(filter) > -1) ? "" : "none";
+            }
+        });
+
+        menu.addEventListener('click', function (e) {
+            if (e.target && e.target.classList.contains('filter-option-item')) {
+                var selectedText = e.target.getAttribute('data-text');
+                var selectedValue = e.target.getAttribute('data-value');
+
+                input.value = selectedText;
+                hidden.value = selectedValue;
+
+                if (typeof filterTable === "function") {
+                    filterTable();
+                }
+            }
+        });
+    }
+    setupPersonelFiltreDropdown();
+
+    // 🎯 Hızlı Planlama Modalı Açma Tetikleyicisi
+    function hizliPlanlaModalAc(id, aciklama) {
+        document.getElementById("modalPlanIsId").value = id;
+        document.getElementById("modalPlanAciklama").innerText = aciklama;
+
+        var myModal = new bootstrap.Modal(document.getElementById('hizliPlanlaModal'));
+        myModal.show();
+    }
+
+    // 🎯 Ajax ile Controller Metodunu Çağırma (Tarih Planlama)
+    function hizliPlanlamaKaydet() {
+        var id = document.getElementById("modalPlanIsId").value;
+        var acilis = document.getElementById("modalAcilisTarihi").value;
+        var bitis = document.getElementById("modalBitisTarihi").value;
+
+        if (!acilis || !bitis) {
+            alert("Lütfen hem Açılış hem Bitiş tarihlerini eksiksiz seçiniz!");
+            return;
+        }
+
+        var token = $('input[name="__RequestVerificationToken"]').val();
+
+        $.ajax({
+            url: '/Planlama/PlaniPlanla',
+            type: 'POST',
+            data: {
+                planIsId: id,
+                acilisTarihi: acilis,
+                sonBitisTarihi: bitis,
+                __RequestVerificationToken: token
+            },
+            success: function (response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function (xhr) {
+                console.error("STATUS:", xhr.status, "RESPONSE:", xhr.responseText);
+                alert("İşlem gerçekleştirilirken bir hata oluştu (kod: " + xhr.status + ").");
+            }
+        });
+    }
+
+    // 🎯 Plan Silme Fonksiyonu
+    function planSilOnay(id, aciklama) {
+        if (!confirm('"' + aciklama + '" adlı planı silmek istediğinize emin misiniz?\nBu işlem geri alınamaz.')) {
+            return;
+        }
+
+        var token = $('input[name="__RequestVerificationToken"]').val();
+
+        $.ajax({
+            url: '/Planlama/PlanSil',
+            type: 'POST',
+            data: {
+                planIsId: id,
+                __RequestVerificationToken: token
+            },
+            success: function (response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function (xhr) {
+                console.error("STATUS:", xhr.status, "RESPONSE:", xhr.responseText);
+                alert("Silme işlemi sırasında bir hata oluştu (kod: " + xhr.status + ").");
+            }
+        });
+    }
+
+    // 🎯 Tablo Filtreleme Fonksiyonu (Global Scope - ID / Durum / Personel filtrelerini birlikte uygular)
+    function filterTable() {
+        var searchInput = document.getElementById("tabloIdSearchInput");
+        var filterSelect = document.getElementById("planFiltresi");
+        var personelHidden = document.getElementById("personelFiltresi");
+        if (!searchInput || !filterSelect || !personelHidden) return;
+
+        var filterValue = searchInput.value.trim();
+        var statusFilter = filterSelect.value;
+        var personelFilter = personelHidden.value;
+        var tableRows = document.querySelectorAll("#planTablosu tbody tr");
+
+        tableRows.forEach(function (row) {
+            var firstCell = row.getElementsByTagName("td")[0];
+            if (!firstCell) return;
+
+            var cellText = (firstCell.textContent || firstCell.innerText).trim();
+            var isExpired = row.getAttribute("data-expired") === "true";
+            var isPlanli = row.getAttribute("data-planli") === "true";
+            var atananId = row.getAttribute("data-atanan");
+
+            // ID Filtresi Mantığı
+            var matchesId = (filterValue === "" || cellText === filterValue);
+
+            // Durum Filtresi Mantığı
+            var matchesStatus = true;
+            if (statusFilter === "active") {
+                matchesStatus = isPlanli && !isExpired;
+            } else if (statusFilter === "expired") {
+                matchesStatus = isPlanli && isExpired;
+            } else if (statusFilter === "planlandi") {
+                matchesStatus = isPlanli;
+            } else if (statusFilter === "planlanmadi") {
+                matchesStatus = !isPlanli;
+            }
+
+            // Personel Filtresi Mantığı
+            var matchesPersonel = true;
+            if (personelFilter === "atanmamis") {
+                matchesPersonel = (atananId === "" || atananId === null);
+            } else if (personelFilter !== "all") {
+                matchesPersonel = (atananId === personelFilter);
+            }
+
+            // Üç koşul da sağlanıyorsa göster
+            if (matchesId && matchesStatus && matchesPersonel) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        var searchInput = document.getElementById("tabloIdSearchInput");
+        var filterSelect = document.getElementById("planFiltresi");
+
+        if (searchInput) searchInput.addEventListener("input", filterTable);
+        if (filterSelect) filterSelect.addEventListener("change", filterTable);
+    });
+</script>

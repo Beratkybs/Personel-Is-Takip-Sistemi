@@ -1,0 +1,930 @@
+﻿@model KullanıcıWeb.Models.IsTakip
+@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    ViewData["Title"] = "Madde Detay Yönetimi";
+    var taskId = Model.TaskId;
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2><i class="bi bi-journal-text text-success"></i> Madde Detay & Düzenleme</h2>
+            <p class="text-muted mb-0">Seçilen #@Model.TaskId numaralı maddenin teknik detaylarını buradan düzenleyebilirsiniz.</p>
+        </div>
+        <div>
+            @{
+                bool anaGorevdenMiGeldi = Context.Request.Query["fromMaster"] == "true";
+            }
+
+            <div class="d-flex gap-2">
+            
+                @if (Context.Session.GetInt32("RoleId") == KullanıcıWeb.Models.Roller.Admin)
+                {
+                    <button type="button" class="btn btn-warning d-flex align-items-center gap-1 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#planlamaKopyalaModal">
+                        <i class="bi bi-calendar-plus-fill"></i> Planlama Sekmesine Kopyala
+                    </button>
+                }
+
+                @if (Model.MasterTaskId != null && Model.MasterTaskId > 0 && anaGorevdenMiGeldi)
+                {
+                    <!-- SENARYO 1: Madde alt görev VE kullanıcı gerçekten ana görevin içinden tıklayarak geldi -->
+                    <a asp-controller="IsDetay" asp-action="Index" asp-route-id="@Model.MasterTaskId" class="btn btn-outline-primary d-flex align-items-center gap-1 fw-bold">
+                        <i class="bi bi-arrow-left-short fs-5"></i> <span class="badge bg-secondary me-1">#@Model.MasterTaskId</span> Ana Göreve Dön
+                    </a>
+                }
+                else
+                {
+                    <a asp-controller="IsTakip" asp-action="Index" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+                        <i class="bi bi-arrow-left"></i> İş Havuzuna Geri Dön
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+    <hr />
+
+    @if (TempData["Mesaj"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["Mesaj"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["HataMesajı"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>Hata!</strong> @TempData["HataMesajı"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+  
+    <form asp-controller="IsDetay" asp-action="Guncelle" asp-route-fromMaster="@(Context.Request.Query["fromMaster"])" method="post">
+        <input type="hidden" name="taskId" value="@Model.TaskId" />
+
+        <div class="row">
+            <!-- Düzenleme alanı -->
+            <div class="col-md-8">
+
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Madde Bilgilerini Düzenle</h5>
+                        <button type="submit" class="btn btn-primary btn-sm fw-bold">
+                            <i class="bi bi-save"></i> Değişiklikleri Kaydet
+                        </button>
+                    </div>
+                    <div class="card-body bg-light">
+
+                        <div class="row g-3">
+                            <!-- Madde Açıklaması -->
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold text-dark">Madde Açıklaması</label>
+                                <input type="text" name="taskTitle" class="form-control bg-white" value="@Model.TaskTitle" required />
+                            </div>
+
+                            <!-- Proje Adı -->
+                            <div class="col-md-6 dropdown">
+                                <label class="form-label fw-bold text-dark">Proje Adı</label>
+                                <input type="text" id="projectSearch" class="form-control bg-white dropdown-toggle" value="@Model.ProjectName" placeholder="Proje arayın..." data-bs-toggle="dropdown" autocomplete="off" />
+                                <input type="hidden" name="projectId" id="gizliProjectId" value="@Model.ProjectId" />
+                                <ul class="dropdown-menu w-100 shadow-sm" id="projectMenu" style="max-height: 200px; overflow-y: auto;">
+                                    <li><button class="dropdown-item option-item text-muted" type="button" data-value="" data-text="">-- Projesiz İş --</button></li>
+                                    @if (ViewBag.Projeler != null)
+                                    {
+                                        foreach (var prj in ViewBag.Projeler)
+                                        {
+                                            <li><button class="dropdown-item option-item" type="button" data-value="@prj.ProjectId" data-text="@prj.ProjectName">@prj.ProjectName</button></li>
+                                        }
+                                    }
+                                </ul>
+                            </div>
+
+                            <!-- Organizasyon -->
+                            <div class="col-md-6 dropdown">
+                                <label class="form-label fw-bold text-dark">Organizasyon</label>
+                                <input type="text" id="organizationSearch" class="form-control bg-white dropdown-toggle" value="@Model.OrganizationName" placeholder="Organizasyon arayın..." data-bs-toggle="dropdown" autocomplete="off" />
+                                <input type="hidden" name="organizationName" id="gizliOrganization" value="@Model.OrganizationName" />
+                                <ul class="dropdown-menu w-100 shadow-sm" id="organizationMenu" style="max-height: 200px; overflow-y: auto;">
+                                    <li><button class="dropdown-item option-item text-muted" type="button" data-value="" data-text="">-- Organizasyon Yok --</button></li>
+                                    @if (ViewBag.Organizasyonlar != null)
+                                    {
+                                        foreach (var org in ViewBag.Organizasyonlar)
+                                        {
+                                            <li><button class="dropdown-item option-item" type="button" data-value="@org.OrgName" data-text="@org.OrgName">@org.OrgName</button></li>
+                                        }
+                                    }
+                                </ul>
+                            </div>
+
+                            <!-- Kategori -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark">Kategori</label>
+                                <select name="categoryId" class="form-select bg-white">
+                                    <option value="">Kategori Seçin...</option>
+                                    @if (ViewBag.Kategoriler != null)
+                                    {
+                                        foreach (var kat in ViewBag.Kategoriler)
+                                        {
+                                            <!option value="@kat.CategoryId" @(kat.CategoryId == Model.CategoryId ? "selected" : "")>@kat.CategoryName</!option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- Atanan Personel -->
+                            <div class="col-md-6 dropdown">
+                                <label class="form-label fw-bold text-dark">Atanacak Personel</label>
+                                <input type="text" id="assignedUserSearch" class="form-control bg-white dropdown-toggle" value="@Model.AssignedUserFullName" placeholder="Tıklayın veya arayın..." data-bs-toggle="dropdown" autocomplete="off" />
+                                <input type="hidden" name="assignedUserId" id="gizliAssignedUserId" value="@Model.AssignedUserId" />
+                                <ul class="dropdown-menu w-100 shadow-sm" id="assignedUserMenu" style="max-height: 200px; overflow-y: auto;">
+                                    <li><button class="dropdown-item option-item text-muted" type="button" data-value="" data-text="">-- Personel Seçilmedi --</button></li>
+                                    @if (ViewBag.Personeller != null)
+                                    {
+                                        foreach (var personel in ViewBag.Personeller)
+                                        {
+                                            <li><button class="dropdown-item option-item" type="button" data-value="@personel.USER_ID" data-text="@personel.FIRST_NAME @personel.LAST_NAME">@personel.FIRST_NAME @personel.LAST_NAME</button></li>
+                                        }
+                                    }
+                                </ul>
+                            </div>
+
+                            <!-- Önem Derecesi -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-dark">Önem Derecesi</label>
+                                <select name="importanceLevel" class="form-select bg-white">
+                                    <!option value="Normal" @(Model.ImportanceLevel == "Normal" ? "selected" : "")>Normal</!option>
+                                    <!option value="Kritik" @(Model.ImportanceLevel == "Kritik" ? "selected" : "")>Kritik</!option>
+                                    <!option value="Düşük" @(Model.ImportanceLevel == "Düşük" ? "selected" : "")>Düşük</!option>
+                                </select>
+                            </div>
+
+                            <!-- Öncelik -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-dark">Öncelik</label>
+                                <select name="priority" class="form-select bg-white">
+                                    <!option value="Düşük" @(Model.Priority == "Düşük" ? "selected" : "")>Düşük</!option>
+                                    <!option value="Orta" @(Model.Priority == "Orta" ? "selected" : "")>Orta</!option>
+                                    <!option value="Yüksek" @(Model.Priority == "Yüksek" ? "selected" : "")>Yüksek</!option>
+                                </select>
+                            </div>
+
+                            <!-- Durum -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-dark">Durum</label>
+                                <select name="durumId" class="form-select bg-white">
+                                    <option value="">Durum Seçin...</option>
+                                    @if (ViewBag.Durumlar != null)
+                                    {
+                                        foreach (var d in ViewBag.Durumlar)
+                                        {
+                                            <!option value="@d.DurumId" @(d.DurumId == Model.DurumId ? "selected" : "")>@d.DurumName</!option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- ST_ID -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-dark">ST_ID</label>
+                                <input type="number" name="stId" class="form-control bg-white" value="@Model.StId" />
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                            @if (Model.MasterTaskId == null || Model.MasterTaskId == 0)
+                            {
+                                <div class="col-md-4 d-flex align-items-end justify-content-end">
+                                    <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#altGorevModal" style="height: 38px;">
+                                        <i class="bi bi-plus-circle"></i> Alt Madde Ekle
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- İş bilgileri-->
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-success text-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-info-circle-fill"></i>Madde Bilgileri</h5>
+                    </div>
+                    <div class="card-body bg-white">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span class="text-muted"><i class="bi bi-hash"></i> Madde No</span>
+                                <span class="fw-bold text-dark">#@Model.TaskId</span>
+                            </li>
+                            @if (Model.MasterTaskId != null && Model.MasterTaskId > 0)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span class="text-muted"><i class="bi bi-diagram-2-fill"></i> Üst Madde No</span>
+                                    <span class="fw-bold text-dark">#@Model.MasterTaskId</span>
+                                </li>
+                            }
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span class="text-muted"><i class="bi bi-person-fill-up"></i> Bildiren</span>
+                                <span class="fw-bold text-dark">@Model.ReportedBy</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span class="text-muted"><i class="bi bi-calendar-event"></i> Açılış Tarihi</span>
+                                <span class="fw-bold text-dark">@Model.StartDate.ToString("dd.MM.yyyy HH:mm")</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span class="text-muted"><i class="bi bi-person-workspace"></i> Son Güncelleyen</span>
+                                <span class="fw-bold text-dark">@(Model.LastUpdatedBy ?? "-")</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span class="text-muted"><i class="bi bi-calendar-check"></i> Son Günc. Tarihi</span>
+                                <span class="fw-bold text-dark">@(Model.LastUpdateDate.HasValue ? Model.LastUpdateDate.Value.ToString("dd.MM.yyyy HH:mm") : "-")</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Subtask listeleme -->
+    @{
+        var subTasks = ViewBag.SubTasks as List<KullanıcıWeb.Models.IsTakip>;
+    }
+
+    @if (Model.MasterTaskId == null || Model.MasterTaskId == 0)
+    {
+        <div class="card mt-4 shadow-sm border-0">
+            <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-diagram-3-fill me-2 text-success"></i> Bu Maddeye Ait Alt Maddeler</h5>
+                <span class="badge bg-success fw-bold px-3 py-2 rounded-pill shadow-sm" style="font-size: 0.85rem;">
+                    <i class="bi bi-layers-half me-1"></i> @(subTasks?.Count ?? 0) Alt Madde
+                </span>
+            </div>
+            <div class="card-body p-0 bg-white">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 13px;">
+                        <thead class="table-light border-bottom fw-bold text-secondary text-uppercase text-nowrap" style="font-size: 11px; letter-spacing: 0.5px;">
+                            <tr>
+                                <th class="text-center" style="width: 70px;">ID</th>
+                                <th class="text-center" style="width: 70px;">Flag</th>
+                                <th>Alt Madde Açıklaması</th>
+                                <th>Proje</th>
+                                <th>Organizasyon</th>
+                                <th>Kategori</th>
+                                <th>Bildiren</th>
+                                <th class="text-center">Açılış Tarihi</th>
+                                <th>Atanan Personel</th>
+                                <th class="text-center">Önem Der.</th>
+                                <th class="text-center">Öncelik</th>
+                                <th class="text-center">Durum</th>
+                                <th>Son Güncelleyen</th>
+                                <th class="text-center">Son Günc. Tarihi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (subTasks != null && subTasks.Any())
+                            {
+                                foreach (var subTask in subTasks)
+                                {
+                                    bool isCompleted = subTask.DurumName == "Tamamlandı" || subTask.DurumName == "Tamam";
+                                    bool isPassive = subTask.Flag == "E" || isCompleted;
+
+                                    string subStyle = isPassive
+                                        ? "background-color: #eceff1 !important; color: #6c757d; font-size: 12.5px;"
+                                        : "background-color: #f1f8e9 !important; font-size: 12.5px; font-weight: 500;";
+
+                                    <tr style="@subStyle">
+                                        <td class="text-center font-weight-bold text-muted">↳ @subTask.TaskId</td>
+                                        <td class="text-center">
+                                            <span class="badge @(subTask.Flag == "E" ? "bg-secondary" : "bg-success")" style="font-size: 10px; padding: 4px 7px;">
+                                                @(subTask.Flag == "E" ? "Eski" : "Aktif")
+                                            </span>
+                                        </td>
+                                        <td class="font-weight-bold text-wrap" style="min-width: 180px;">
+                                            <!-- Link etiketine route parametresi eklendi -->
+                                            <a asp-controller="IsDetay" asp-action="Index" asp-route-id="@subTask.TaskId" asp-route-fromMaster="true"
+                                               class="text-decoration-none d-flex align-items-center @(isCompleted ? "text-decoration-line-through text-muted" : "text-primary fw-bold")">
+                                                <i class="bi bi-arrow-return-right me-2 text-success fw-bold" style="-webkit-text-stroke: 0.5px;"></i>
+                                                @subTask.TaskTitle
+                                            </a>
+                                        </td>
+                                        <td class="text-truncate" style="max-width: 120px;">@subTask.ProjectName</td>
+                                        <td class="text-truncate" style="max-width: 120px;">@subTask.OrganizationName</td>
+                                        <td>@subTask.CategoryName</td>
+                                        <td class="text-muted">@subTask.ReportedBy</td>
+                                        <td class="text-center text-nowrap text-muted">@subTask.StartDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                        <td class="text-nowrap fw-bold text-primary">
+                                            <i class="bi bi-person-badge text-muted me-1"></i> @subTask.AssignedUserFullName
+                                        </td>
+                                        <td class="text-center text-muted">@subTask.ImportanceLevel</td>
+                                        <td class="text-center">
+                                            <span class="badge @(subTask.Priority == "Yüksek" ? "bg-warning text-dark" : "bg-info text-white")" style="font-size: 10px; padding: 4px 7px;">
+                                                @subTask.Priority
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge @(isPassive ? "bg-dark text-white" : "bg-success")" style="font-size: 10px; padding: 4px 7px;">
+                                                @subTask.DurumName
+                                            </span>
+                                        </td>
+                                        <td class="text-muted">@subTask.LastUpdatedBy</td>
+                                        <td class="text-center text-nowrap text-muted">
+                                            @(subTask.LastUpdateDate.HasValue ? subTask.LastUpdateDate.Value.ToString("dd.MM.yyyy HH:mm") : "-")
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="14" class="text-center text-muted py-4 fw-medium">
+                                        <i class="bi bi-info-circle me-1"></i> Bu maddeye bağlı herhangi bir alt madde kaydı bulunamadı.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Mesajlaşma alanı -->
+    <div class="row mt-4" id="mesajlasmaAlani">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-chat-left-text-fill"></i> Madde ile İlgili Haraketler</h5>
+
+                    <div class="btn-group btn-group-sm mb-0 shadow-sm border border-secondary rounded-2" role="group" aria-label="Mesaj Filtresi">
+                        <button type="button" class="btn btn-outline-light active shadow-none" data-filtre="tum">Tümü</button>
+                        <button type="button" class="btn btn-outline-light shadow-none" data-filtre="dosya">Dosyalar</button>
+                        <button type="button" class="btn btn-outline-light shadow-none" data-filtre="sistem">Sistem</button>
+                    </div>
+                </div>
+
+                @{
+                    string currentLoginUserId = (ViewBag.LoginUserId ?? "").ToString().Replace("\0", "").Trim();
+                    string currentLoginRoleId = (ViewBag.LoginRoleId ?? "").ToString().Replace("\0", "").Trim();
+                }
+
+                <div class="card-body bg-light" id="mesajKutusu" style="max-height: 400px; overflow-y: auto;">
+                    @if (ViewBag.Mesajlar != null && ((List<KullanıcıWeb.Models.IsMesaj>)ViewBag.Mesajlar).Count > 0)
+                    {
+                        foreach (var mesaj in (List<KullanıcıWeb.Models.IsMesaj>)ViewBag.Mesajlar)
+                        {
+                            @if (mesaj.HareketTipi == "SYSTEM_LOG")
+                            {
+                                string isimRengiClass = mesaj.IsUserActive == 0 ? "text-danger fw-bold" : "text-secondary";
+                                <div class="d-flex justify-content-center my-3 mesaj-karti" data-hareket="SYSTEM_LOG" data-dosya="YOK">
+                                    <div class="badge bg-light text-secondary border px-3 py-2 rounded-pill shadow-sm text-wrap" style="font-size: 0.85rem; max-width: 90%; line-height: 1.4;">
+                                        <i class="bi bi-info-circle-fill text-info me-2"></i>
+                                        <strong class="@isimRengiClass">@mesaj.KullaniciAdSoyad</strong> @mesaj.MesajIcerik
+                                        <span class="text-muted ms-2" style="font-size: 0.75rem;">(@mesaj.MesajTarih.ToString("dd.MM.yyyy HH:mm"))</span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                string mesajUserId = mesaj.UserId?.ToString().Replace("\0", "").Trim() ?? "";
+
+                                bool silmeYetkisiVarMi = (currentLoginRoleId == KullanıcıWeb.Models.Roller.Admin.ToString()) ||
+                                                     (!string.IsNullOrEmpty(currentLoginUserId) && mesajUserId == currentLoginUserId) ||
+                                                     (string.IsNullOrEmpty(currentLoginUserId));
+
+                                bool dosyaVarMi = !string.IsNullOrEmpty(mesaj.GorselYolu);
+
+                                <div class="p-3 mb-3 bg-white rounded shadow-sm border-start border-4 border-success mesaj-karti" data-hareket="USER_MESSAGE" data-dosya="@(dosyaVarMi ? "VAR" : "YOK")">
+                                    <div class="d-flex justify-content-between align-items-start mb-2 border-bottom pb-2">
+                                        <div>
+                                            <strong class="@(mesaj.IsUserActive == 0 ? "text-danger fw-bold" : "text-primary")" style="font-size: 15px;">
+                                                @mesaj.KullaniciAdSoyad
+                                            </strong>
+                                            <span class="text-muted ms-2" style="font-size: 12px;">
+                                                <i class="bi bi-clock"></i> @mesaj.MesajTarih.ToString("dd.MM.yyyy HH:mm")
+                                            </span>
+                                        </div>
+
+                                        @if (silmeYetkisiVarMi)
+                                        {
+                                            <div>
+                                                <form asp-controller="IsDetay" asp-action="MesajSil" method="post" onsubmit="return confirm('Bu mesajı silmek istediğinize emin misiniz?');" class="m-0 p-0">
+                                                    <input type="hidden" name="mesajId" value="@mesaj.MesajId" />
+                                                    <input type="hidden" name="taskId" value="@Model.TaskId" />
+
+                                                    <button type="submit" class="btn btn-sm btn-danger px-2 py-1 fw-bold text-uppercase" title="Mesajı Sil" style="font-size: 11px; letter-spacing: 0.5px; border-radius: 4px;">
+                                                        <i class="bi bi-trash3-fill"></i> Sil
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="pt-1">
+                                        <p class="mb-1 text-dark" style="white-space: pre-line; font-size: 14px; line-height: 1.5;">@mesaj.MesajIcerik</p>
+                                    </div>
+
+                                    @if (dosyaVarMi)
+                                    {
+                                        var dosyaYolu = mesaj.GorselYolu.ToLower().Trim();
+                                        var resimUzantilari = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                                        bool resimMi = resimUzantilari.Any(u => dosyaYolu.EndsWith(u));
+
+                                        string dosyaAdi = System.IO.Path.GetFileName(mesaj.GorselYolu);
+                                        if (dosyaAdi.Contains("_"))
+                                        {
+                                            dosyaAdi = dosyaAdi.Substring(dosyaAdi.IndexOf("_") + 1);
+                                        }
+
+                                        <div class="mt-2 pt-1">
+                                            @if (resimMi)
+                                            {
+                                                <a href="@mesaj.GorselYolu" target="_blank">
+                                                    <img src="@mesaj.GorselYolu" class="img-fluid rounded border shadow-sm hover-opacity" style="max-height: 180px; width: auto; transition: 0.2s;" alt="Görsel" />
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <div class="d-inline-block">
+                                                    <a href="@mesaj.GorselYolu" target="_blank" download class="btn btn-light btn-sm d-flex align-items-center p-2 rounded border shadow-sm" style="text-decoration: none;">
+                                                        @if (dosyaYolu.EndsWith(".pdf"))
+                                                        {
+                                                            <i class="bi bi-file-earmark-pdf-fill text-danger fs-4 me-2"></i>
+                                                        }
+                                                        else if (dosyaYolu.EndsWith(".doc") || dosyaYolu.EndsWith(".docx"))
+                                                        {
+                                                            <i class="bi bi-file-earmark-word-fill text-primary fs-4 me-2"></i>
+                                                        }
+                                                        else if (dosyaYolu.EndsWith(".xls") || dosyaYolu.EndsWith(".xlsx"))
+                                                        {
+                                                            <i class="bi bi-file-earmark-excel-fill text-success fs-4 me-2"></i>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="bi bi-file-earmark-arrow-down-fill text-secondary fs-4 me-2"></i>
+                                                        }
+                                                        <div class="text-start">
+                                                            <span class="d-block text-dark fw-bold" style="font-size: 12px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                                @dosyaAdi
+                                                            </span>
+                                                            <small class="text-muted" style="font-size: 10px;">Dosyayı indirmek için tıklayın</small>
+                                                        </div>
+                                                    </a>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                    }
+                </div>
+
+                <!-- Mesaj ve görsel ekleme yeri -->
+                <div class="card-footer bg-white border-top-0 pt-0 pb-3">
+                    <form asp-controller="IsDetay" asp-action="YorumEkle" asp-route-fromMaster="@(Context.Request.Query["fromMaster"])" method="post" enctype="multipart/form-data" id="yorumForm">
+                        <input type="hidden" name="taskId" value="@Model.TaskId" />
+
+                        <div class="border rounded-4 p-2 bg-light shadow-sm">
+                            <div class="position-relative">
+                                <textarea name="mesajIcerik" id="mesajIcerik" class="form-control border-0 bg-transparent shadow-none" rows="2" placeholder="Maddeye dair bir not yazın, dosya yapıştırın veya ekleyin..." style="resize: none; font-size: 14px;"></textarea>
+                            </div>
+
+                            <div id="onizlemeListesiKonteyner" class="d-none flex-wrap gap-2 mb-2 px-2 pt-2">
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top border-light-subtle px-1">
+                                <div>
+                                    <input type="file" name="gorsel" id="gorselFile" class="d-none" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx" />
+
+                                    <button type="button" id="btnDosyaSecTetikle" class="btn btn-light d-flex align-items-center justify-content-center rounded-circle shadow-sm" style="width: 32px; height: 32px; background-color: #e9ecef; border: none;" title="Dosya Ekle">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-plus-lg text-dark fw-bold" viewBox="0 0 16 16">
+                                            <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <button type="submit" class="btn btn-success rounded-pill px-3 py-1.5 d-flex align-items-center gap-1 shadow-sm" style="font-size: 13px;">
+                                    <i class="bi bi-arrow-up-short fs-5 line-height: 1;"></i> Gönder
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ALT GÖREV EKLEME MODAL PENCERESİ -->
+<div class="modal fade" id="altGorevModal" tabindex="-1" aria-labelledby="altGorevModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="altGorevModalLabel">Yeni Alt Madde Ekle</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <form asp-controller="IsDetay" asp-action="AltGorevEkle" method="post">
+                <div class="modal-body">
+
+                    <!-- Arka planda controller'a gidecek gizli veriler -->
+                    <input type="hidden" name="masterTaskId" value="@Model.TaskId" />
+                    <input type="hidden" name="projectId" value="@Model.ProjectId" />
+                    <input type="hidden" name="organizationName" value="@Model.OrganizationName" />
+                    <input type="hidden" name="categoryId" value="@Model.CategoryId" />
+                    <input type="hidden" name="reportedBy" value="@Model.ReportedBy" />
+
+                    <!-- ANA İŞTEN ALINAN VE DEĞİŞTİRİLEMEYEN ALANLAR  -->
+                    <div class="row bg-light p-3 mb-3 rounded border">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label text-muted small fw-bold">Proje Adı</label>
+                            <input type="text" class="form-control form-control-sm text-secondary bg-white" value="@Model.ProjectName" readonly />
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label text-muted small fw-bold">Organizasyon</label>
+                            <input type="text" class="form-control form-control-sm text-secondary bg-white" value="@Model.OrganizationName" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold">Kategori</label>
+                            <input type="text" class="form-control form-control-sm text-secondary bg-white" value="@Model.CategoryName" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold">Bildiren Kişi</label>
+                            <input type="text" class="form-control form-control-sm text-secondary bg-white" value="@Model.ReportedBy" readonly />
+                        </div>
+                    </div>
+
+                    <!-- KULLANICININ DOLDURACAĞI YENİ ALANLAR -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Madde Açıklaması</label>
+                        <input type="text" class="form-control" name="taskTitle" required placeholder="Alt madde açıklaması yazınız..." />
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Atanacak Personel</label>
+                            <select class="form-select" name="assignedUserId">
+                                <option value="0">Atanacak kişi seçin...</option>
+                                @foreach (var p in ViewBag.Personeller)
+                                {
+                                    <option value="@p.USER_ID">@p.FIRST_NAME @p.LAST_NAME</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Durum</label>
+                            <select class="form-select" name="durumId" required>
+                                <option value="">Durum Seçin...</option>
+                                @if (ViewBag.Durumlar != null)
+                                {
+                                    foreach (var d in ViewBag.Durumlar)
+                                    {
+                                        <!option value="@d.DurumId">@d.DurumName</!option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">ST_ID</label>
+                            <input type="number" class="form-control" name="stId" placeholder="ST_ID" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Önem Derecesi</label>
+                            <select class="form-select" name="importanceLevel">
+                                <option value="Kritik">Kritik</option>
+                                <option value="Normal" selected>Normal</option>
+                                <option value="Düşük">Düşük</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Öncelik</label>
+                            <select class="form-select" name="priority">
+                                <option value="Yüksek">Yüksek</option>
+                                <option value="Normal">Orta</option>
+                                <option value="Düşük" selected>Düşük</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                    <button type="submit" class="btn btn-primary">Alt Madde Oluştur</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- YENİ EKLENEN PLANLAMA KOPYALAMA MODAL PENCERESİ -->
+@if (Context.Session.GetInt32("RoleId") == KullanıcıWeb.Models.Roller.Admin)
+{
+    <div class="modal fade" id="planlamaKopyalaModal" tabindex="-1" aria-labelledby="planlamaKopyalaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold" id="planlamaKopyalaModalLabel">
+                        <i class="bi bi-shield-lock-fill"></i> İşi Planlama Listesine Aktar
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <form asp-controller="Planlama" asp-action="PlanlamayaKopyala" method="post">
+                    <div class="modal-body">
+                        <!-- Orijinal Task ID (Controller'a gizli parametre olarak aktarılıyor) -->
+                        <input type="hidden" name="taskId" value="@Model.TaskId" />
+
+                        <div class="alert alert-warning small mb-0 shadow-sm border-start border-3 border-warning bg-light">
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                            <strong>Bilgilendirme:</strong> Bu işlem bu görevi mevcut görev havuzundan <strong>silmez veya taşımaz</strong>. 
+                            Görev, Planlama Paneli'ne doğrudan <strong>"Planlanmadı"</strong> durumunda ve tarihsiz olarak aktarılacaktır.
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                        <button type="submit" class="btn btn-warning fw-bold text-dark">
+                            <i class="bi bi-copy"></i>Kopyala
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+<script>
+    // Arama özellikli dropdown fonksiyonu (DOM güvenli hale getirildi)
+    function setupSearchableDropdown(inputId, menuId, hiddenId) {
+        var input = document.getElementById(inputId);
+        var menu = document.getElementById(menuId);
+        var hidden = document.getElementById(hiddenId);
+        if (!input || !menu) return;
+
+        var items = menu.getElementsByClassName('option-item');
+
+        input.addEventListener('click', function() {
+            var bootstrapDropdown = new bootstrap.Dropdown(input);
+            bootstrapDropdown.show();
+        });
+
+        input.addEventListener('input', function() {
+            var filter = input.value.toLowerCase();
+            var bootstrapDropdown = new bootstrap.Dropdown(input);
+            bootstrapDropdown.show();
+
+            for (var i = 0; i < items.length; i++) {
+                var text = items[i].textContent || items[i].innerText;
+                if (text.toLowerCase().indexOf(filter) > -1) {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        });
+
+        menu.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('option-item')) {
+                var selectedText = e.target.getAttribute('data-text');
+                var selectedValue = e.target.getAttribute('data-value');
+
+                input.value = selectedText;
+                hidden.value = selectedValue;
+            }
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Dropdown kurulumları DOM yüklendiği an güvenli şekilde tetikleniyor
+        setupSearchableDropdown('projectSearch', 'projectMenu', 'gizliProjectId');
+        setupSearchableDropdown('organizationSearch', 'organizationMenu', 'gizliOrganization');
+        setupSearchableDropdown('assignedUserSearch', 'assignedUserMenu', 'gizliAssignedUserId');
+
+        var textarea = document.getElementById("mesajIcerik");
+        var fileInput = document.getElementById("gorselFile");
+        var btnTetikle = document.getElementById("btnDosyaSecTetikle");
+        var onizlemeListesi = document.getElementById("onizlemeListesiKonteyner");
+        var form = document.getElementById("yorumForm");
+        var mesajKutusu = document.getElementById("mesajKutusu");
+
+        // Seçilen veya yapıştırılan tüm dosyaları hafızada tutacak dinamik liste
+        var yuklenenDosyalar = [];
+
+        // Artı butonuna tıklandığında gizli dosya inputunu tetikler
+        if (btnTetikle && fileInput) {
+            btnTetikle.addEventListener("click", function () {
+                fileInput.click();
+            });
+        }
+
+        // Sayfayı otomatik en alta kaydıran yardımcı fonksiyon
+        function scrollEnAltaKaydir() {
+            if (mesajKutusu) {
+                mesajKutusu.scrollTop = mesajKutusu.scrollHeight;
+            }
+        }
+
+        if (mesajKutusu) {
+            scrollEnAltaKaydir();
+            setTimeout(scrollEnAltaKaydir, 50);
+            setTimeout(scrollEnAltaKaydir, 250);
+
+            var iceridekiGorseller = mesajKutusu.querySelectorAll("img");
+            var yuklenenGorselSayisi = 0;
+            
+            if (iceridekiGorseller.length > 0) {
+                iceridekiGorseller.forEach(function(img) {
+                    img.addEventListener("load", function() {
+                        yuklenenGorselSayisi++;
+                        if (yuklenenGorselSayisi === iceridekiGorseller.length) {
+                            scrollEnAltaKaydir();
+                        }
+                    });
+                });
+            }
+        }
+
+        if (!textarea || !fileInput) return;
+
+        // Gelişmiş Dosya ve Resim Yapıştırma (Ctrl+V) Desteği
+        textarea.addEventListener("paste", function (e) {
+            var clipboardData = e.clipboardData || window.clipboardData;
+            if (!clipboardData) return;
+
+            var items = clipboardData.items;
+            var dosyaBulundu = false;
+
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf("image") !== -1) {
+                    var file = items[i].getAsFile();
+                    var pastedFile = new File([file], "pasted_image_" + Date.now() + ".png", { type: "image/png" });
+                    yuklenenDosyalar.push(pastedFile);
+                    dosyaBulundu = true;
+                }
+                else if (items[i].kind === "file") {
+                    var file = items[i].getAsFile();
+                    if (file) {
+                        yuklenenDosyalar.push(file);
+                        dosyaBulundu = true;
+                    }
+                }
+            }
+
+            if (dosyaBulundu) {
+                e.preventDefault();
+                arayuzOnizlemeGuncelle();
+            }
+        });
+
+        // Dosya inputundan çoklu seçim yapıldığında tetiklenir
+        fileInput.addEventListener("change", function () {
+            if (fileInput.files) {
+                for (var i = 0; i < fileInput.files.length; i++) {
+                    yuklenenDosyalar.push(fileInput.files[i]);
+                }
+                arayuzOnizlemeGuncelle();
+            }
+        });
+
+        // Hafızadaki dosyaları eşzamanlı olarak render eden fonksiyon
+        function arayuzOnizlemeGuncelle() {
+            if (!onizlemeListesi) return;
+            onizlemeListesi.innerHTML = "";
+
+            if (yuklenenDosyalar.length === 0) {
+                onizlemeListesi.classList.add("d-none");
+                onizlemeListesi.classList.remove("d-flex");
+                fileInput.value = "";
+                return;
+            }
+
+            onizlemeListesi.classList.remove("d-none");
+            onizlemeListesi.classList.add("d-flex");
+
+            yuklenenDosyalar.forEach(function (file, index) {
+                var dosyaAdi = file.name;
+                var uzanti = dosyaAdi.substring(dosyaAdi.lastIndexOf('.')).toLowerCase();
+                var resimUzantilari = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
+                var kartId = "kart_" + index;
+                var kartHtml = `
+                    <div id="${kartId}" class="position-relative" style="width: 76px; height: 76px;">
+                        <img id="img_${kartId}" src="" class="d-none rounded-3 border" style="width: 100%; height: 100%; object-fit: cover;" />
+                        <div id="doc_${kartId}" class="d-none flex-column justify-content-between p-2 rounded-3 bg-secondary text-white w-100 h-100" style="opacity: 0.9;">
+                            <span class="fw-bold text-uppercase opacity-75" style="font-size: 9px; letter-spacing: 0.5px;">${uzanti.replace('.', '').toUpperCase()}</span>
+                            <span class="text-wrap lh-sm fw-semibold w-100 text-start" style="font-size: 10px; max-height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; text-overflow: ellipsis; word-break: break-all;">${dosyaAdi.substring(0, dosyaAdi.lastIndexOf('.'))}</span>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm position-absolute d-flex align-items-center justify-content-center border-white shadow" style="top: -6px; right: -6px; width: 18px; height: 18px; padding: 0; border-radius: 50%; z-index: 5;" title="Kaldır">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" class="bi bi-x-lg text-white" viewBox="0 0 16 16">
+                              <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                onizlemeListesi.insertAdjacentHTML('beforeend', kartHtml);
+
+                var elImg = document.getElementById("img_" + kartId);
+                var elDoc = document.getElementById("doc_" + kartId);
+                var elBtnKaldir = document.getElementById(kartId).querySelector("button");
+
+                if (resimUzantilari.includes(uzanti) || file.type.indexOf("image") !== -1) {
+                    if(elDoc) elDoc.classList.add("d-none");
+                    if(elImg) elImg.classList.remove("d-none");
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        if(elImg) elImg.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    if(elImg) elImg.classList.add("d-none");
+                    if(elDoc) {
+                        elDoc.classList.remove("d-none");
+                        elDoc.classList.add("d-flex");
+                    }
+                }
+
+                elBtnKaldir.addEventListener("click", function () {
+                    yuklenenDosyalar.splice(index, 1);
+                    arayuzOnizlemeGuncelle();
+                });
+            });
+        }
+
+        // Form post edilirken hafızadaki dosyaları HTML inputuna bağlar
+        if (form) {
+            form.addEventListener("submit", function (e) {
+                var textValue = textarea.value.trim();
+
+                if (textValue === "" && yuklenenDosyalar.length === 0) {
+                    alert("Lütfen göndermeden önce bir mesaj yazın veya bir dosya ekleyin!");
+                    e.preventDefault();
+                    return;
+                }
+
+                var dataTransfer = new DataTransfer();
+                yuklenenDosyalar.forEach(function (file) {
+                    dataTransfer.items.add(file);
+                });
+                fileInput.files = dataTransfer.files;
+            });
+        }
+
+        // ==========================================
+        // DİNAMİK MESAJ VE LOG FİLTRELEME MOTORU
+        // ==========================================
+        var filtreButonlari = document.querySelectorAll("[data-filtre]");
+
+        // 🎯 DÜZELTME: filterButonlari typo'su giderildi, filtreButonlari olarak senkronize edildi.
+        filtreButonlari.forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                filtreButonlari.forEach(function (b) {
+                    b.classList.remove("active");
+                    b.style.backgroundColor = "transparent";
+                    b.style.color = "#fff";
+                });
+                btn.classList.add("active");
+                btn.style.backgroundColor = "#fff";
+                btn.style.color = "#000";
+
+                var secilenFiltre = btn.getAttribute("data-filtre");
+                var mesajKartlari = document.querySelectorAll(".mesaj-karti");
+
+                mesajKartlari.forEach(function (kart) {
+                    var hareketTipi = kart.getAttribute("data-hareket");
+                    var dosyaDurumu = kart.getAttribute("data-dosya");
+
+                    if (secilenFiltre === "tum") {
+                        kart.style.setProperty("display", "", "important");
+                        if (hareketTipi === "SYSTEM_LOG") {
+                            kart.style.setProperty("display", "flex", "important");
+                        }
+                    }
+                    else if (secilenFiltre === "dosya") {
+                        if (hareketTipi === "USER_MESSAGE" && dosyaDurumu === "VAR") {
+                            kart.style.setProperty("display", "block", "important");
+                        } else {
+                            kart.style.setProperty("display", "none", "important");
+                        }
+                    }
+                    else if (secilenFiltre === "sistem") {
+                        if (hareketTipi === "SYSTEM_LOG") {
+                            kart.style.setProperty("display", "flex", "important");
+                        } else {
+                            kart.style.setProperty("display", "none", "important");
+                        }
+                    }
+                });
+
+                scrollEnAltaKaydir();
+            });
+        });
+
+    }); // DOMContentLoaded Kapanışı
+</script>

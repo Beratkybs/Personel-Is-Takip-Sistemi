@@ -1,0 +1,91 @@
+﻿@model IEnumerable<KullanıcıWeb.Models.Proje>
+
+@{
+    ViewData["Title"] = "Proje Yönetim Modülü";
+}
+
+<div class="container mt-4 px-4" style="max-width: 900px;">
+    
+   
+    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4">
+        <div>
+            <h2 class="text-dark font-weight-bold">📁 Kurum Proje Havuzu</h2>
+            <p class="text-muted small">HBK_PROJE_TABLE Yönetim Paneli</p>
+        </div>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-sm">⬅️ Ana Sayfaya Dön</a>
+    </div>
+
+    
+<form asp-action="Index" method="get" class="form-inline mb-3">
+    <div class="input-group w-100">
+        <input type="text" name="searchString" class="form-control" 
+               placeholder="Proje adına göre ara..." 
+               value="@ViewData["CurrentFilter"]" />
+        <div class="input-group-append">
+            <button type="submit" class="btn btn-primary"> Ara</button>
+            <a asp-action="Index" class="btn btn-secondary"> Temizle</a>
+        </div>
+    </div>
+</form>
+    <div class="card shadow-sm mb-4 border-left-primary">
+        <div class="card-header bg-dark text-white font-weight-bold">
+            <i class="bi bi-folder-plus"></i> ➕ Yeni Proje Tanımla
+        </div>
+        <div class="card-body bg-light">
+            <form asp-controller="Proje" asp-action="ProjeEkle" method="post" class="row g-3 align-items-end">
+                <div class="col-md-9">
+                    <label class="form-label font-weight-bold">Proje</label>
+                    <input type="text" name="projectName" class="form-control" placeholder="Örn: ACE 4Net Donusum, B2B, UNICO SIGORTA" required />
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-success w-100 font-weight-bold shadow-sm">➕ Projeyi Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+            <div class="col-12 mt-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-secondary text-white font-weight-bold">
+                    📋 Tanımlı Proje Listesi
+                </div>
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped table-bordered mb-0 align-middle small">
+                    <thead class="table-dark text-center text-nowrap">
+                        <tr>
+                            <th style="width: 15%;">Proje ID</th>
+                            <th style="width: 70%;">Proje Adı</th>
+                            <th style="width: 15%;">Aksiyon</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var prj in Model)
+                            {
+                                <tr>
+                                    <td class="text-center font-weight-bold text-secondary">@prj.ProjectId</td>
+                                    <td class="font-weight-bold text-dark px-3">@prj.ProjectName</td>
+                                    <td class="text-center">
+                                        <!-- Silme Güvenlik Kalkanı İçeren Form -->
+                                        <form asp-controller="Proje" asp-action="ProjeSil" method="post" onsubmit="return confirm('@prj.ProjectName projesini silmek istediğinize emin misiniz?\n(Bu projeye bağlı işler silinmez, projesiz kalır.)');">
+                                            <input type="hidden" name="id" value="@prj.ProjectId" />
+                                            <button type="submit" class="btn btn-danger btn-sm p-1 px-2">🗑️ Sil</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4">📭 Sistemde kayıtlı proje bulunamadı.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

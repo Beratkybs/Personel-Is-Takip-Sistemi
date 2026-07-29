@@ -1,0 +1,341 @@
+﻿@model IEnumerable<KullanıcıWeb.Models.Kullanici>
+@using Microsoft.AspNetCore.Http 
+@inject IHttpContextAccessor HttpContextAccessor 
+
+@{
+    ViewData["Title"] = "Kurumsal Kullanıcı ve Yetki Paneli";
+    
+    
+    int? activeRoleId = HttpContextAccessor.HttpContext?.Session.GetInt32("RoleId");
+    bool isAdmin = (activeRoleId == KullanıcıWeb.Models.Roller.Admin);
+}
+
+<div class="container mt-4">
+
+   <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">
+            <i class="bi bi-shield-lock-fill text-primary"></i>👥 Kurumsal Kullanıcı ve Yetki Yönetimi
+        </h2>
+        
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-sm">⬅️ Ana Sayfaya Dön</a>
+    </div>
+
+    
+
+   
+    @if (!isAdmin)
+    {
+        <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-4" role="alert">
+            <i class="bi bi-exclamation-shield-fill fs-4 me-3 text-warning"></i>
+            <div>
+                <strong>Görüntüleme Modu:</strong> Personel ekleme, güncelleme ve silme yetkileriniz kısıtlanmıştır. Bu işlemleri gerçekleştirmek için Sistem Yöneticisi (Admin) ile iletişime geçiniz.
+            </div>
+        </div>
+    }
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <form asp-action="Index" method="get" class="d-flex gap-2">
+                <input type="text" name="searchString" class="form-control"
+                       placeholder="Ad, soyad veya e-posta adresine göre personel ara..."
+                       value="@ViewData["CurrentFilter"]" />
+                <button type="submit" class="btn btn-primary d-flex align-items-center gap-1">
+                    <i class="bi bi-search"></i> Ara
+                </button>
+                <a asp-action="Index" class="btn btn-secondary d-flex align-items-center gap-1">
+                    <i class="bi bi-arrow-clockwise"></i> Listeyi Yenile
+                </a>
+            </form>
+        </div>
+    </div>
+    
+    <div class="row">
+
+
+      
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-person-plus"></i> Yeni Personel Tanımla</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Ekle" method="post">
+
+
+                        <fieldset @(isAdmin ? "" : "disabled")>
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label class="form-label font-weight-bold">Adı</label>
+                                    <input type="text" name="firstName" class="form-control" required placeholder="Ad" />
+                                </div>
+                                <div class="col">
+                                    <label class="form-label">Soyadı</label>
+                                    <input type="text" name="lastName" class="form-control" required placeholder="Soyad" />
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Kurumsal E-Posta</label>
+                                <input type="email" name="email" class="form-control" placeholder="ad.soyad@sirket.com" required />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">İletişim Numarası</label>
+                                <input type="text" name="phone" class="form-control" placeholder="05xx xxx xx xx" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Hesap Durumu</label>
+                                <select name="isActive" class="form-select">
+                                    <option value="E">Aktif (Sisteme Giriş Yapabilir)</option>
+                                    <option value="H">Pasif (Erişimi Engelli)</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Kurumsal Rol / Unvan</label>
+                                <select name="roleId" class="form-select" required>
+                                    <option value="2">Yazılım Geliştirici (DEVELOPER)</option>
+                                    <option value="3">Test Mühendisi (TEST_ENGINEER)</option>
+                                    <option value="4">İş Analisti (BUSINESS_ANALYST)</option>
+                                    <option value="1">Proje Yöneticisi (PROJECT_MANAGER)</option>
+                                    <option value="5">DevOps Mühendisi (DEVOPS_ENGINEER)</option>
+                                    <option value="6">Sistem Yoneticisi (ADMIN)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label font-weight-bold">Organizasyon</label>
+                                <select name="OrgId" class="form-select" required>
+                                    <option value="">Organizasyon Seçin...</option>
+                                    @if (ViewBag.Organizasyonlar != null)
+                                    {
+                                        @foreach (var org in ViewBag.Organizasyonlar)
+                                        {
+                                            <option value="@org.OrgId">@org.OrgName</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100 py-2 mt-2">
+                                <i class="bi bi-check-circle-fill"></i> Personeli Kaydet
+                            </button>
+                        </fieldset>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+      
+
+
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-secondary text-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-table"></i> Aktif Personel Listesi</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped align-middle mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Ad Soyad</th>
+                                    <th>E-Posta</th>
+                                    <th>Organizasyon</th>
+                                    <th>Kurumsal Rol</th>
+                                    <th>Hesap Durumu</th>
+                                    <th>Kayıt Tarihi</th>
+                                    <th class="text-center">Aksiyon</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Model.Any())
+                                {
+                                    <tr>
+                                        <td colspan="8" class="text-center py-5 text-muted">
+                                            <i class="bi bi-folder-x display-4 d-block mb-2"></i>
+                                            Gösterilecek personel kaydı bulunamadı.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var item in Model)
+                                    {
+                                        <tr>
+                                            <td><span class="text-muted">#</span>@item.USER_ID</td>
+                                            <td>
+                                                <div class="fw-bold text-dark">@item.FIRST_NAME @item.LAST_NAME</div>
+                                                <small class="text-muted text-monospace">@@@item.USERNAME</small>
+                                            </td>
+                                            <td>@item.EMAIL</td>
+                                            <td><span class="badge bg-light text-dark border">@item.OrganizationName</span></td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#roleModal_@item.USER_ID">
+                                                    <span class="badge bg-primary p-2 text-wrap" style="cursor: pointer;">
+                                                        <i class="bi bi-info-circle-fill me-1"></i> @item.ROLE_NAME
+                                                    </span>
+                                                </button>
+                                            </td>
+                                            <td>
+                                                @if (item.IS_ACTIVE == "E")
+                                                {
+                                                    <span class="badge bg-success-subtle text-success px-2 py-1 border border-success-subtle">Aktif</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger-subtle text-danger px-2 py-1 border border-danger-subtle">Pasif</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <small class="text-muted"><i class="bi bi-calendar3"></i> @item.CREATED_AT.ToString("dd.MM.yyyy HH:mm")</small>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="d-flex gap-1 justify-content-center">
+                                                   
+                                                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#editModal_@item.USER_ID"
+                                                            @(isAdmin ? "" : "disabled")>
+                                                        <i class="bi bi-pencil-square"></i> Düzenle
+                                                    </button>
+
+                                                    
+                                                    <form asp-action="Sil" method="post" onsubmit="return confirm('@item.FIRST_NAME @item.LAST_NAME isimli personeli sistemden silmek istediğinize emin misiniz?');">
+                                                        <input type="hidden" name="id" value="@item.USER_ID" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" @(isAdmin ? "" : "disabled")>
+                                                            <i class="bi bi-trash3-fill"></i> Sil
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@foreach (var item in Model)
+{
+    <div class="modal fade" id="roleModal_@item.USER_ID" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-shield-check"></i> Yetki & Rol Detayları</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="text-muted d-block small uppercase fw-bold">Unvan Tanımı</label>
+                        <h4 class="text-primary">@item.ROLE_NAME</h4>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted d-block small uppercase fw-bold">Sistem Kodu</label>
+                        <code class="bg-light p-1 px-2 rounded border d-inline-block text-danger">@item.ROLE_CODE</code>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted d-block small uppercase fw-bold mb-2">
+                            <i class="bi bi-card-text"></i> Görev, Yetki ve Sorumluluk Tanımı
+                        </label>
+                        <div class="p-3 bg-white rounded border text-dark shadow-sm" style="line-height: 1.6; font-size: 0.95rem; border-left: 4px solid #0d6efd !important;">
+                            @item.DESCRIPTION
+                        </div>
+                    </div>
+                    <div class="alert alert-warning d-flex align-items-center gap-2 mb-0" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                        <div>
+                            Bu role sahip personeller, kurumsal güvenlik politikaları gereğince sistem loglarında takip edilmektedir.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editModal_@item.USER_ID" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Personel Bilgilerini Güncelle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <form asp-action="Guncelle" method="post">
+                    <div class="modal-body p-4">
+                        <fieldset @(isAdmin ? "" : "disabled")>
+                            <input type="hidden" name="userId" value="@item.USER_ID" />
+
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label class="form-label fw-bold">Adı</label>
+                                    <input type="text" name="firstName" class="form-control" value="@item.FIRST_NAME" required />
+                                </div>
+                                <div class="col">
+                                    <label class="form-label fw-bold">Soyadı</label>
+                                    <input type="text" name="lastName" class="form-control" value="@item.LAST_NAME" required />
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Kurumsal E-Posta</label>
+                                <input type="email" name="email" class="form-control" value="@item.EMAIL" required />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">İletişim Numarası</label>
+                                <input type="text" name="phone" class="form-control" value="@item.PHONE" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Hesap Durumu</label>
+                                <select name="isActive" class="form-select">
+                                    <option value="E" selected="@(item.IS_ACTIVE == "E")">Aktif (Giriş Yapabilir)</option>
+                                    <option value="H" selected="@(item.IS_ACTIVE == "H")">Pasif (Erişimi Engelli)</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Kurumsal Rol / Unvan</label>
+                                <select name="roleId" class="form-select" required>
+                                    <option value="2" selected="@(item.ROLE_ID == 2)">Yazılım Geliştirici (DEVELOPER)</option>
+                                    <option value="3" selected="@(item.ROLE_ID == 3)">Test Mühendisi (TEST_ENGINEER)</option>
+                                    <option value="4" selected="@(item.ROLE_ID == 4)">İş Analisti (BUSINESS_ANALYST)</option>
+                                    <option value="1" selected="@(item.ROLE_ID == 1)">Proje Yöneticisi (PROJECT_MANAGER)</option>
+                                    <option value="5" selected="@(item.ROLE_ID == 5)">DevOps Mühendisi (DEVOPS_ENGINEER)</option>
+                                    <option value="6" selected="@(item.ROLE_ID == 6)">Sistem Yoneticisi (ADMIN)</option>
+                                    <option value="6">Sistem Yoneticisi (ADMIN)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label font-weight-bold">Organizasyon</label>
+                                <select name="OrgId" class="form-select" required>
+                                    <option value="">Organizasyon Seçin...</option>
+                                    @if (ViewBag.Organizasyonlar != null)
+                                    {
+                                        @foreach (var org in ViewBag.Organizasyonlar)
+                                        {
+                                            <option value="@org.OrgId" selected="@(item.OrgId == org.OrgId)">@org.OrgName</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </fieldset>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                        <button type="submit" class="btn btn-warning fw-bold text-dark" @(isAdmin ? "" : "disabled")>Değişiklikleri Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

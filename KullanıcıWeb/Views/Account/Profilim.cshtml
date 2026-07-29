@@ -1,0 +1,58 @@
+﻿@model KullanıcıWeb.Models.Kullanici
+
+@{
+    ViewData["Title"] = "Profil Ayarları";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <!-- Üst Başlık Alanı -->
+                <div class="card-header bg-dark text-white text-center py-4">
+                    <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center text-white mb-2" style="width: 80px; height: 80px; font-size: 2rem;">
+                        👤
+                    </div>
+                    <h4 class="mb-0 fw-bold">Personel Profil Kartı</h4>
+                    <p class="text-white-50 small mb-0">Sistem Kimlik ve Hesap Detayları</p>
+                </div>
+                
+                <!-- Bilgi Alanları -->
+                <div class="card-body p-4 bg-light">
+                    
+                    <div class="row mb-3 border-bottom pb-2">
+                        <div class="col-sm-4 text-muted font-weight-bold">Personel ID:</div>
+                        <div class="col-sm-8 text-dark font-weight-bold">#@Model.USER_ID</div>
+                    </div>
+
+                    <div class="row mb-3 border-bottom pb-2">
+                        <div class="col-sm-4 text-muted font-weight-bold">Adı Soyadı:</div>
+                        <div class="col-sm-8 text-dark font-weight-bold text-uppercase">@Model.FIRST_NAME @Model.LAST_NAME</div>
+                    </div>
+
+                    <div class="row mb-3 border-bottom pb-2">
+                        <div class="col-sm-4 text-muted font-weight-bold">Sistem Rolü:</div>
+                        <div class="col-sm-8 text-primary font-weight-bold">Yazılım Mühendisi / Personel</div>
+                    </div>
+
+                    <div class="row mb-3 pb-2">
+                        <div class="col-sm-4 text-muted font-weight-bold">Hesap Durumu:</div>
+                        <div class="col-sm-8">
+                            <span class="badge @(Model.IS_ACTIVE == "E" ? "bg-success" : "bg-danger")">
+                                @(Model.IS_ACTIVE == "E" ? "Aktif Kullanıcı" : "Pasif")
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Geri Dönüş Butonu -->
+                    <div class="d-grid gap-2 mt-4">
+                        <a asp-controller="IsTakip" asp-action="Index" class="btn btn-dark font-weight-bold shadow-sm w-100">
+                            📋 Görev Havuzuna Git
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

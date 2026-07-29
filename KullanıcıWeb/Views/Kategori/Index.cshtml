@@ -1,0 +1,82 @@
+﻿@model IEnumerable<KullanıcıWeb.Models.Kategori>
+
+@{
+    ViewData["Title"] = "Kategori Yönetimi";
+}
+
+<div class="container mt-4">
+    
+    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4">
+        <div>
+            <h2 class="text-dark font-weight-bold">🏷️ Kurum Kategori Havuzu</h2>
+            <p class="text-muted small">HBK_KATEGORI_TABLE Yönetim Paneli<</p>
+        </div>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-sm">⬅️ Ana Sayfaya Dön</a>
+    </div>
+
+    <div class="row">
+        <!-- Yeni Kategori Ekleme Butonu -->
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-dark text-white font-weight-bold">
+                    ➕ Yeni Kategori Tanımla
+                </div>
+                <div class="card-body bg-light">
+                    <form asp-controller="Kategori" asp-action="KategoriEkle" method="post">
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Kategori</label>
+                            <input type="text" name="categoryName" class="form-control border-secondary" placeholder="Örn: Ek Geliştirme, Altyapı..." required autocomplete="off" />
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 font-weight-bold shadow-sm">➕ Kategori Ekle</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mevcut Kategorilerin Listesi -->
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-secondary text-white font-weight-bold">
+                    📋 Tanımlı Kategori Listesi
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 align-middle">
+                            <thead class="table-dark text-center">
+                                <tr>
+                                    <th style="width: 15%;">ID</th>
+                                    <th style="width: 70%;" class="text-start">Kategori Adı</th>
+                                    <th style="width: 15%;">Aksiyon</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model != null && Model.Any())
+                                {
+                                    foreach (var kat in Model)
+                                    {
+                                        <tr>
+                                            <td class="text-center font-weight-bold text-muted">#@kat.CategoryId</td>
+                                            <td class="font-weight-bold text-dark text-start">@kat.CategoryName</td>
+                                            <td class="text-center">
+                                                <form asp-controller="Kategori" asp-action="KategoriSil" method="post" onsubmit="return confirm('@kat.CategoryName kategorisini silmek istediğinize emin misiniz?');">
+                                                    <input type="hidden" name="id" value="@kat.CategoryId" />
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm px-3">🗑️ Sil</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-4">📭 Kayıtlı kategori bulunamadı.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

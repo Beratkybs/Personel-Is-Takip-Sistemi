@@ -1,0 +1,19 @@
+## .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+## Ortam / gizli bilgiler
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+*.pfx
+
+## Yüklenen dosyalar (kullanıcı içeriği repoya gitmemeli)
+**/wwwroot/uploads/**
+
+## IDE
+.vscode/
+*.DotSettings

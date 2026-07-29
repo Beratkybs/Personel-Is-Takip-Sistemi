@@ -1,12 +1,5 @@
-# Vendor/kütüphane klasörlerini dil istatistiğinden hariç tut
 wwwroot/lib/** linguist-vendored
-wwwroot/js/lib/** linguist-vendored
-Scripts/** linguist-vendored
-node_modules/** linguist-vendored
-
-# .cshtml dosyalarını doğru şekilde işaretle (opsiyonel ama iyi pratik)
-*.cshtml linguist-language=C#
-
-# Otomatik oluşturulan dosyaları hariç tut
-Migrations/** linguist-generated
-*.designer.cs linguist-generated
+wwwroot/css/** linguist-vendored
+wwwroot/js/** linguist-vendored
+*.min.js linguist-vendored
+*.min.css linguist-vendored

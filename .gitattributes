@@ -1,6 +1,12 @@
-# wwwroot içindeki üçüncü parti kütüphaneler (bootstrap, jquery vb.)
-# GitHub dil istatistiklerine dahil edilmesin diye "vendored" işaretlendi.
+# Vendor/kütüphane klasörlerini dil istatistiğinden hariç tut
 wwwroot/lib/** linguist-vendored
+wwwroot/js/lib/** linguist-vendored
+Scripts/** linguist-vendored
+node_modules/** linguist-vendored
 
-# Razor view'ları HTML yerine C#/.NET projesinin bir parçası say
+# .cshtml dosyalarını doğru şekilde işaretle (opsiyonel ama iyi pratik)
 *.cshtml linguist-language=C#
+
+# Otomatik oluşturulan dosyaları hariç tut
+Migrations/** linguist-generated
+*.designer.cs linguist-generated

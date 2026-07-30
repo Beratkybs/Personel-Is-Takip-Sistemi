@@ -1,5 +1,6 @@
-wwwroot/lib/** linguist-vendored
-wwwroot/css/** linguist-vendored
-wwwroot/js/** linguist-vendored
+KullanıcıWeb/wwwroot/lib/** linguist-vendored
+KullanıcıWeb/wwwroot/css/** linguist-vendored
+KullanıcıWeb/wwwroot/js/** linguist-vendored
 *.min.js linguist-vendored
 *.min.css linguist-vendored
+*.cshtml linguist-language=C#

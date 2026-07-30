@@ -354,6 +354,39 @@ namespace KullanıcıWeb.Services
             return kullanici;
         }
 
+
+        // excel methodu
+        public List<IsTakip> GetExcelFiltreliIsListesi(string personelId, string durum, string organizasyonName, string loginUsername, int? loginUserId)
+        {
+
+            if (string.IsNullOrEmpty(personelId) && string.IsNullOrEmpty(durum) && string.IsNullOrEmpty(organizasyonName))
+            {
+                return new List<IsTakip>();
+            }
+
+
+            var tumData = GetIndexData("tum-hatalar", loginUsername, loginUserId);
+
+            var sorgu = tumData.isListesi.AsQueryable();
+
+            if (!string.IsNullOrEmpty(personelId) && int.TryParse(personelId, out int parsedUserId))
+            {
+                sorgu = sorgu.Where(x => x.AssignedUserId == parsedUserId);
+            }
+
+            if (!string.IsNullOrEmpty(durum))
+            {
+                sorgu = sorgu.Where(x => x.DurumName != null && x.DurumName.Equals(durum, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrEmpty(organizasyonName))
+            {
+                sorgu = sorgu.Where(x => x.OrganizationName != null && x.OrganizationName.Equals(organizasyonName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return sorgu.ToList();
+        }
+
     }
 }
 

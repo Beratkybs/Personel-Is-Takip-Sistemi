@@ -14,9 +14,10 @@ namespace KullanıcıWeb.Services
        
 
         Kullanici GetKullaniciById(int userId);
+        List<IsTakip> GetExcelFiltreliIsListesi(string personelId, string durum, string organizasyonName, string loginUsername, int? loginUserId);
 
 
 
-    
+
     }
 }

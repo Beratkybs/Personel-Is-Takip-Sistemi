@@ -7,7 +7,7 @@
 
 <style>
     /* 1. Tüm Seçim ve Girdi Alanlarının Standart Yazı, Çerçeve ve Arka Plan Rengini Eşitleme */
-    .custom-form-input, 
+    .custom-arama-input,
     .form-select, 
     .form-control {
         color: #212529 !important; 
@@ -19,7 +19,7 @@
     }
 
     /* Inputların içindeki placeholder yazı rengini sabitleme */
-    .custom-form-input::placeholder,
+    .custom-arama-input::placeholder,
     .form-control::placeholder {
         color: #6c757d !important;
         font-weight: normal !important;
@@ -27,7 +27,7 @@
     }
 
     /* Tıklandığında (Odaklanıldığında) Çıkan Çerçeve Renklerini Yeşile Eşitleme */
-    .custom-form-input:focus,
+    .custom-arama-input:focus,
     .form-select:focus,
     .form-control:focus {
         border-color: #198754 !important;
@@ -321,6 +321,14 @@
             </select>
         </div>
     </div>
+
+<div class="col-md-auto ms-auto text-end">
+    <button type="button" class="btn btn-outline-success btn-sm fw-bold shadow-sm px-2" 
+            data-bs-toggle="modal" data-bs-target="#excelRaporModal"
+                    style="font-size: 12px;">
+        <i class="bi bi-file-earmark-excel-fill text-success me-1"></i> Excel Raporu
+    </button>
+</div>
 </div>
             <div class="table-responsive">
                 <table class="table table-hover table-striped table-bordered mb-0 align-middle small">
@@ -444,90 +452,302 @@
             </div>
         </div>
     </div>
+
+
+
+<!-- Excel Raporlama Modalı -->
+<div class="modal fade" id="excelRaporModal" tabindex="-1" aria-labelledby="excelRaporModalLabel" aria-hidden="true" data-bs-focus="false">
+    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 95%;">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header" style="background-color: #198754; color: #fff;">
+                <h5 class="modal-title fw-bold" id="excelRaporModalLabel">
+                    <i class="bi bi-file-earmark-excel me-2"></i>Gelişmiş Excel Raporu ve Önizleme
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <form action="/IsTakip/ExcelRaporIndir" method="get" id="excelRaporForm">
+                <div class="modal-body p-4 text-dark">
+                    <div class="row">
+                        <!-- Sol Kolon: Filtreler -->
+                        <div class="col-md-3 border-end">
+                            <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">Rapor Filtreleri</h6>
+                            <p class="text-muted small mb-3">
+                                En az bir kriter seçtiğinizde rapor önizlemesi anlık olarak listelenecek...
+                            </p>
+                            
+                            <!-- 1. Atanan Personel Filtresi -->
+                           <div class="mb-3 dropdown position-relative input-ok-kapsayici">
+                            <label class="form-label font-weight-bold text-dark small">Personel</label>
+                            <input type="text" id="modalPersonelSearch"
+                                   class="form-control form-select font-weight-bold dropdown-toggle custom-arama-input excel-filtre-input"
+                                   placeholder="Personel Seçiniz..." data-bs-toggle="dropdown" autocomplete="off" />
+                            <i class="bi bi-chevron-down position-absolute end-0 top-50 translate-middle-y me-3" style="pointer-events:none;"></i>
+                            <input type="hidden" name="personelId" id="gizliModalPersonelId" />
+
+                            <ul class="dropdown-menu w-100 shadow-sm" id="modalPersonelMenu" style="max-height: 200px; overflow-y: auto;">
+
+                                    <li>
+                                        <button class="dropdown-item option-item text-muted" type="button" data-value="" data-text="">-- Tüm Personeller --</button>
+                                    </li>
+                                    @if (ViewBag.Personeller != null)
+                                    {
+                                        foreach (var personel in ViewBag.Personeller)
+                                        {
+                                            <li>
+                                                <button class="dropdown-item option-item" type="button" data-value="@personel.USER_ID" data-text="@personel.FIRST_NAME @personel.LAST_NAME">
+                                                    @personel.FIRST_NAME @personel.LAST_NAME
+                                                </button>
+                                            </li>
+                                        }
+                                    }
+                                </ul>
+                            </div>
+
+                            <!-- 2. Durum Filtresi -->
+                            <div class="mb-3">
+                                <label class="form-label font-weight-bold text-dark small">Durumu</label>
+                                <select name="durum" id="modalDurum" class="form-select border-secondary fw-bold">
+                                    <option value="">Durum Seçiniz...</option>
+                                    @if (ViewBag.Durumlar != null)
+                                    {
+                                        foreach (var d in ViewBag.Durumlar)
+                                        {
+                                            <option value="@d.DurumName">@d.DurumName</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- 3. Organizasyon Filtresi -->
+                            <div class="mb-4 dropdown position-relative input-ok-kapsayici">
+                            <label class="form-label font-weight-bold text-dark small">Organizasyon</label>
+                            <input type="text" id="modalOrgSearch"
+                                   class="form-control form-select font-weight-bold dropdown-toggle custom-arama-input excel-filtre-input"
+                                   placeholder="Organizasyon Seçiniz..." data-bs-toggle="dropdown" autocomplete="off" />
+                            <i class="bi bi-chevron-down position-absolute end-0 top-50 translate-middle-y me-3" style="pointer-events:none;"></i>
+                            <input type="hidden" name="organizasyonName" id="gizliModalOrgName" />
+
+                            <ul class="dropdown-menu w-100 shadow-sm" id="modalOrgMenu" style="max-height: 200px; overflow-y: auto;">
+                                <li>
+                                    <button class="dropdown-item option-item text-muted" type="button" data-value="" data-text="">-- Tüm Organizasyonlar --</button>
+                                </li>
+                                @if (ViewBag.Organizasyonlar != null)
+                                {
+                                    foreach (var org in ViewBag.Organizasyonlar)
+                                    {
+                                        <li>
+                                            <button class="dropdown-item option-item" type="button" data-value="@org.OrgName" data-text="@org.OrgName">
+                                                @org.OrgName
+                                            </button>
+                                        </li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+                        </div>
+
+                        <!-- Sağ Kolon: Genişletilmiş Çıktı Önizleme Tablosu -->
+                        <div class="col-md-9">
+                            <h6 class="fw-bold text-secondary mb-3 border-bottom pb-2 d-flex justify-content-between align-items-center">
+                                <span>Rapor Önizlemesi</span>
+                                <span class="badge bg-secondary" id="modalKayitSayisi">0 Kayıt</span>
+                            </h6>
+                            <div class="table-responsive border rounded" style="max-height: 420px; overflow-y: auto;">
+                                <table class="table table-sm table-hover table-bordered table-striped small align-middle mb-0">
+                                    <thead class="table-dark text-center text-nowrap text-white sticky-top">
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Üst Madde ID</th>
+                                            <th>Flag</th>
+                                            <th>Açıklama</th>
+                                            <th>Proje</th>
+                                            <th>Organizasyon</th>
+                                            <th>Kategori</th>
+                                            <th>Bildiren</th>
+                                            <th>Açılış Tarihi</th>
+                                            <th>Geçen Gün</th>
+                                            <th>Atanan Personel</th>
+                                            <th>Önem Der.</th>
+                                            <th>Öncelik</th>
+                                            <th>Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="excelOnizlemeGövde">
+                                        <tr>
+                                            <td colspan="14" class="text-center text-muted py-4">Lütfen rapor oluşturmak için kriter seçiniz...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-secondary shadow-sm font-weight-bold" data-bs-dismiss="modal">Vazgeç</button>
+                    <button type="submit" class="btn btn-success shadow-sm font-weight-bold px-4">
+                        <i class="bi bi-download me-2"></i>Raporla ve Excel İndir
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 </div>
 
 <script>
-    function setupSearchableDropdown(inputId, menuId, hiddenId) {
+    function setupSearchableDropdown(inputId, menuId, hiddenId, onSelect) {
         var input = document.getElementById(inputId);
         var menu = document.getElementById(menuId);
         var hidden = document.getElementById(hiddenId);
         if (!input || !menu) return;
         var items = menu.getElementsByClassName('option-item');
 
-       
-        input.addEventListener('click', function() {
-            var bootstrapDropdown = new bootstrap.Dropdown(input);
-            bootstrapDropdown.show();
-        });
+   
+      input.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var dropdown = bootstrap.Dropdown.getOrCreateInstance(input);
+        dropdown.show();
+    });
 
-        
         input.addEventListener('input', function() {
-            var filter = input.value.toLowerCase();
-            var bootstrapDropdown = new bootstrap.Dropdown(input);
-            bootstrapDropdown.show(); 
+            var filter = input.value.toLowerCase().trim();
+            
+            var tamEslenmeBulundu = false;
+            var ilkKismiEslenmeItem = null;
 
             for (var i = 0; i < items.length; i++) {
-                var text = items[i].textContent || items[i].innerText;
-                if (text.toLowerCase().indexOf(filter) > -1) {
-                    items[i].style.display = ""; 
-                } else {
-                    items[i].style.display = "none"; 
+                var text = (items[i].textContent || items[i].innerText).toLowerCase().trim();
+                var isVisible = text.indexOf(filter) > -1;
+                
+                items[i].style.display = isVisible ? "" : "none";
+
+                if (isVisible && filter !== "") {
+                    if (text === filter) {
+                        tamEslenmeBulundu = true;
+                        hidden.value = items[i].getAttribute('data-value');
+                    }
+                    if (!ilkKismiEslenmeItem) {
+                        ilkKismiEslenmeItem = items[i];
+                    }
                 }
             }
+
+            if (filter === "") {
+                hidden.value = "";
+            } else if (!tamEslenmeBulundu && ilkKismiEslenmeItem) {
+                hidden.value = ilkKismiEslenmeItem.getAttribute('data-value');
+            }
+
+            if (typeof onSelect === 'function') onSelect();
         });
 
-        
         menu.addEventListener('click', function(e) {
             if (e.target && e.target.classList.contains('option-item')) {
-                var selectedText = e.target.getAttribute('data-text');
-                var selectedValue = e.target.getAttribute('data-value');
-
-                input.value = selectedText;     
-                hidden.value = selectedValue;   
+                input.value = e.target.getAttribute('data-text');
+                hidden.value = e.target.getAttribute('data-value');
+                if (typeof onSelect === 'function') onSelect();
             }
         });
     }
 
-    
+    function updateExcelPreview() {
+        var personelId = document.getElementById('gizliModalPersonelId').value;
+        var durum = document.getElementById('modalDurum').value;
+        var orgName = document.getElementById('gizliModalOrgName').value;
+        var tbody = document.getElementById('excelOnizlemeGövde');
+
+        if (!personelId && !durum && !orgName) {
+            tbody.innerHTML = '<tr><td colspan="14" class="text-center text-muted py-4">Lütfen rapor oluşturmak için kriter seçiniz...</td></tr>';
+            document.getElementById('modalKayitSayisi').textContent = '0 Kayıt';
+            return;
+        }
+
+        tbody.innerHTML = '<tr><td colspan="14" class="text-center py-4"><div class="spinner-border spinner-border-sm text-secondary me-2"></div> Veriler yükleniyor...</td></tr>';
+
+        var params = new URLSearchParams();
+        if (personelId) params.append('personelId', personelId);
+        if (durum) params.append('durum', durum);
+        if (orgName) params.append('organizasyonName', orgName);
+
+        fetch('/IsTakip/ExcelOnizlemeVerisi?' + params.toString())
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data.length) {
+                    tbody.innerHTML = '<tr><td colspan="14" class="text-center text-muted py-4">Kriterlere uygun kayıt bulunamadı.</td></tr>';
+                } else {
+                    tbody.innerHTML = data.map(function(item) {
+                        var acilisTarihi = new Date(item.startDate);
+                        var bugun = new Date();
+                        var zamanFarki = bugun.getTime() - acilisTarihi.getTime();
+                        var gecenGun = Math.floor(zamanFarki / (1000 * 3600 * 24));
+                        if (gecenGun < 0) gecenGun = 0;
+
+                        return '<tr>' +
+                            '<td class="text-center font-weight-bold">' + item.taskId + '</td>' +
+                            '<td class="text-center">' + (item.masterTaskId ? '<span class="badge bg-secondary">#' + item.masterTaskId + '</span>' : '-') + '</td>' +
+                            '<td class="text-center"><span class="badge ' + (item.flag === 'E' ? 'bg-secondary' : 'bg-success') + '">' + (item.flag === 'E' ? 'Eski' : 'Aktif') + '</span></td>' +
+                            '<td class="text-wrap fw-bold text-primary">' + item.taskTitle + '</td>' +
+                            '<td>' + (item.projectName || '-') + '</td>' +
+                            '<td>' + (item.organizationName || '-') + '</td>' +
+                            '<td>' + (item.categoryName || '-') + '</td>' +
+                            '<td class="text-muted">' + (item.reportedBy || '-') + '</td>' +
+                            '<td class="text-center text-nowrap">' + (item.startDateFormated || '-') + '</td>' +
+                            '<td class="text-center fw-bold text-danger">' + gecenGun + ' Gün</td>' +
+                            '<td class="text-nowrap fw-bold text-primary"><i class="bi bi-person-badge"></i> ' + (item.assignedUserFullName || 'Atanmamış') + '</td>' +
+                            '<td class="text-center">' + (item.importanceLevel || 'Normal') + '</td>' +
+                            '<td class="text-center"><span class="badge bg-info">' + (item.priority || 'Düşük') + '</span></td>' +
+                            '<td class="text-center"><span class="badge bg-success">' + item.durumName + '</span></td>' +
+                            '</tr>';
+                    }).join('');
+                }
+                document.getElementById('modalKayitSayisi').textContent = data.length + ' Kayıt';
+            })
+            .catch(function(err) { 
+                console.error(err); 
+                tbody.innerHTML = '<tr><td colspan="14" class="text-center text-danger py-4">Veriler yüklenirken bir sorun oluştu.</td></tr>';
+            });
+    }
+
+    // Dropdown ve arama tanımlamaları
     setupSearchableDropdown('reportedBySearch', 'reportedByMenu', 'gizliReportedBy');
     setupSearchableDropdown('assignedUserSearch', 'assignedUserMenu', 'gizliAssignedUserId');
     setupSearchableDropdown('projectSearch', 'projectMenu', 'gizliProjectId');
     setupSearchableDropdown('organizationSearch', 'organizationMenu', 'gizliOrganization');
+    setupSearchableDropdown('modalPersonelSearch', 'modalPersonelMenu', 'gizliModalPersonelId', updateExcelPreview);
+    setupSearchableDropdown('modalOrgSearch', 'modalOrgMenu', 'gizliModalOrgName', updateExcelPreview);
 
-    document.getElementById("isFiltresi").addEventListener("change", function () {
-        var secilenFiltre = this.value;
-        window.location.href = "/IsTakip/Index?filtre=" + secilenFiltre;
+    document.getElementById('modalDurum').addEventListener('change', updateExcelPreview);
+
+    document.getElementById('excelRaporModal').addEventListener('shown.bs.modal', updateExcelPreview);
+
+    document.getElementById('excelRaporModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('modalPersonelSearch').value = '';
+        document.getElementById('modalOrgSearch').value = '';
+        
+        document.getElementById('gizliModalPersonelId').value = '';
+        document.getElementById('gizliModalOrgName').value = '';
+        
+        document.getElementById('modalDurum').value = '';
+
+        document.getElementById('excelOnizlemeGövde').innerHTML = '<tr><td colspan="14" class="text-center text-muted py-4">Lütfen rapor oluşturmak için kriter seçiniz...</td></tr>';
+        document.getElementById('modalKayitSayisi').textContent = '0 Kayıt';
     });
 
-        
+    document.getElementById("isFiltresi").addEventListener("change", function () {
+        window.location.href = "/IsTakip/Index?filtre=" + this.value;
+    });
+
     document.addEventListener("DOMContentLoaded", function () {
         var searchInput = document.getElementById("tabloIdSearchInput");
-        
         if (searchInput) {
             searchInput.addEventListener("input", function () {
-                var filterValue = searchInput.value.trim(); // Yazılan ID değeri
-                
-                // Tablodaki veri satırlarını seçiyoruz (Header hariç, tbody içindeki tr'ler)
+                var filterValue = searchInput.value.trim();
                 var tableRows = document.querySelectorAll("table tbody tr");
-
                 tableRows.forEach(function (row) {
-                    // Satırın ilk hücresindeki (td) ID değerini alıyoruz
                     var firstCell = row.getElementsByTagName("td")[0];
-                    
                     if (firstCell) {
-                        var cellText = firstCell.textContent || firstCell.innerText;
-                        cellText = cellText.trim();
-
-                        // Arama kutusu boşsa tüm satırları görünür yap
-                        if (filterValue === "") {
-                            row.style.display = "";
-                        } 
-                        // Yazılan ID ile satırdaki ID birebir uyuşuyorsa göster, uyuşmuyorsa gizle
-                        else if (cellText === filterValue) {
-                            row.style.display = "";
-                        } else {
-                            row.style.display = "none";
-                        }
+                        var cellText = (firstCell.textContent || firstCell.innerText).trim();
+                        row.style.display = (filterValue === "" || cellText === filterValue) ? "" : "none";
                     }
                 });
             });

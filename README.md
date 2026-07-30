@@ -1,4 +1,4 @@
-# Personel & İş Takip Sistemi
+# Personel & İş  Takip Sistemi
 
 ASP.NET Core MVC (.NET) ile geliştirilmiş, Oracle veritabanı üzerinde çalışan bir personel yönetimi ve iş takip uygulaması. Kurum içi kullanım senaryosu için tasarlanmıştır: yöneticiler personel hesabı oluşturur, personel kendi işlerini/görevlerini takip eder.
 

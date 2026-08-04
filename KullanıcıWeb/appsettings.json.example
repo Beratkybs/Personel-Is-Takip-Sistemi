@@ -8,5 +8,12 @@
   "AllowedHosts": "*",
   "ConnectionStrings": {
     "OracleConnection": "User Id=YOUR_DB_USER;Password=YOUR_DB_PASSWORD;Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=YOUR_DB_HOST)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=YOUR_SERVICE_NAME)));"
+  },
+  "EmailSettings": {
+    "SmtpServer": "smtp.gmail.com",
+    "Port": 587,
+    "SenderName": "Personel İş Takip Sistemi",
+    "SenderEmail": "gerçek-adresin@gmail.com",
+    "Password": "buraya-app-şifresi-gelecek"
   }
 }

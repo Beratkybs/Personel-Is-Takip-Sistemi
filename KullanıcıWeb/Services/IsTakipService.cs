@@ -5,16 +5,19 @@ using Oracle.ManagedDataAccess.Client;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace KullanıcıWeb.Services
 {
     public class IsTakipService : IIsTakipService
     {
-
         private readonly IConfiguration _configuration;
-        public IsTakipService(IConfiguration configuration)
+        private readonly IEmailService _emailService;
+
+        public IsTakipService(IConfiguration configuration, IEmailService emailService)
         {
             _configuration = configuration;
+            _emailService = emailService;
         }
 
         // sisteme ekran geldiğinde verileri getirmek için yazdığımız metot
@@ -319,6 +322,10 @@ namespace KullanıcıWeb.Services
                     connection.Open();
                     command.ExecuteNonQuery();
                 }
+            }   
+            if(assignedUserId.HasValue && assignedUserId.Value > 0)
+            {
+                BildirimGonderArkaPlan(assignedUserId.Value, taskTitle, priority, importanceLevel, "Yeni İş Eklendi");
             }
 
         }
@@ -329,7 +336,7 @@ namespace KullanıcıWeb.Services
             string connectionString = _configuration.GetConnectionString("OracleConnection")!;
             Kullanici kullanici = null;
 
-            string query = "SELECT USER_ID, FIRST_NAME, LAST_NAME, IS_ACTIVE FROM HBK_KULLANICI_TABLE WHERE USER_ID = :p1";
+            string query = "SELECT USER_ID, FIRST_NAME, LAST_NAME, EMAIL, IS_ACTIVE FROM HBK_KULLANICI_TABLE WHERE USER_ID = :p1";
 
             using (OracleConnection connection = new OracleConnection(connectionString))
             using (OracleCommand command = new OracleCommand(query, connection))
@@ -346,6 +353,7 @@ namespace KullanıcıWeb.Services
                             USER_ID = Convert.ToInt32(reader["USER_ID"]),
                             FIRST_NAME = reader["FIRST_NAME"].ToString()!,
                             LAST_NAME = reader["LAST_NAME"].ToString()!,
+                            EMAIL = reader["EMAIL"] != DBNull.Value ? reader["EMAIL"].ToString()! : string.Empty,
                             IS_ACTIVE = reader["IS_ACTIVE"]?.ToString() ?? "E"
                         };
                     }
@@ -353,6 +361,44 @@ namespace KullanıcıWeb.Services
             }
             return kullanici;
         }
+
+
+
+        private void BildirimGonderArkaPlan(int userId, string taskTitle, string priority, string importanceLevel, string baslikTipi)
+        {
+            Kullanici atananPersonel = GetKullaniciById(userId);
+            if (atananPersonel != null && !string.IsNullOrEmpty(atananPersonel.EMAIL))
+            {
+                string subject = $"🔔 {baslikTipi}: {taskTitle}";
+                string htmlBody = $@"
+                    <div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 5px;'>
+                        <h3 style='color: #2B3674;'>Merhaba {atananPersonel.FIRST_NAME} {atananPersonel.LAST_NAME},</h3>
+                        <p>Üzerinize yeni iş eklenmiştir.</p>
+                        <hr style='border: 0; border-top: 1px solid #eee;'/>
+                        <p><b>İşlem Tipi:</b> {baslikTipi}</p>
+                        <p><b>İş Tanımı:</b> {taskTitle}</p>
+                        <p><b>Öncelik Durumu:</b> {priority ?? "Düşük"}</p>
+                        <p><b>Önem Derecesi:</b> {importanceLevel ?? "Normal"}</p>
+                        <hr style='border: 0; border-top: 1px solid #eee;'/>
+                        <p>Detayları incelemek üzere sisteme giriş yapabilirsiniz.</p>
+                    </div>";
+
+                // Ana akışı (Thread'i) kilitlememek için Fire-and-Forget (Tetikle ve Unut) yaklaşımı
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _emailService.SendEmailAsync(atananPersonel.EMAIL, $"{atananPersonel.FIRST_NAME} {atananPersonel.LAST_NAME}", subject, htmlBody);
+                    }
+                    catch (Exception)
+                    {
+                        // Loglama kodları buraya eklenebilir
+                    }
+                });
+            }
+        }
+
+
 
 
         // excel methodu

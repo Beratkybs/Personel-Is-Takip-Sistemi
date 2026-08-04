@@ -11,10 +11,12 @@ namespace KullanıcıWeb.Services
     public class IsDetayService : IIsDetayService
     {
         private readonly IConfiguration _configuration;
+        private readonly IEmailService _emailService;
 
-        public IsDetayService(IConfiguration configuration)
+        public IsDetayService(IConfiguration configuration, IEmailService emailService)
         {
             _configuration = configuration;
+            _emailService = emailService;
         }
 
 
@@ -351,11 +353,16 @@ namespace KullanıcıWeb.Services
                                    string categoryId, string assignedUserId, string importanceLevel,
                                    string priority, string durumId, int? stId, string guncelleyenKullanici, int aktifKullaniciId)
         {
+
+            bool personelDegistiMi = false;
+            int? yeniAssignedUserId = !string.IsNullOrEmpty(assignedUserId) ? Convert.ToInt32(assignedUserId) : (int?)null;
+            int? yeniDurumId = !string.IsNullOrEmpty(durumId) ? Convert.ToInt32(durumId) : (int?)null;
+
+
             string connectionString = _configuration.GetConnectionString("OracleConnection")!;
 
             using (OracleConnection connection = new OracleConnection(connectionString))
             {
-
                 int? eskiAssignedUserId = null;
                 string eskiBulQuery = $"SELECT ASSIGNED_USER_ID FROM HBK_IS_TAKIP_TABLE WHERE TASK_ID = :taskId";
 
@@ -372,14 +379,14 @@ namespace KullanıcıWeb.Services
                 }
 
                 // Arayüzden gelen yeni atanan kullanıcı ID'si 
-                int? yeniAssignedUserId = !string.IsNullOrEmpty(assignedUserId) ? Convert.ToInt32(assignedUserId) : (int?)null;
-                int? yeniDurumId = !string.IsNullOrEmpty(durumId) ? Convert.ToInt32(durumId) : (int?)null;
+
 
                 string yeniFlag = (yeniDurumId == 6 || yeniDurumId == 5) ? "E" : "H";
 
                 // Eğer eski atanan ile yeni aynı değilse log ekleme
                 if (eskiAssignedUserId != yeniAssignedUserId)
                 {
+                    personelDegistiMi = true;
                     string gecmisInsertQuery = @"INSERT INTO HBK_IS_GECMIS_TABLE (TASK_ID, ISLEMI_YAPAN_KULLANICI_ID, ESKI_PERSONEL_ID, YENI_PERSONEL_ID, ISLEM_TARIHI)
                                         VALUES (:p_task, :p_yapan, :p_eski, :p_yeni, SYSTIMESTAMP)";
 
@@ -417,7 +424,7 @@ namespace KullanıcıWeb.Services
                     command.Parameters.Add(new OracleParameter("p2", projectId ?? (object)DBNull.Value));
                     command.Parameters.Add(new OracleParameter("p3", organizationName ?? (object)DBNull.Value));
                     command.Parameters.Add(new OracleParameter("p4", categoryId ?? (object)DBNull.Value));
-                    command.Parameters.Add(new OracleParameter("p5", assignedUserId ?? (object)DBNull.Value));
+                    command.Parameters.Add(new OracleParameter("p5", yeniAssignedUserId ?? (object)DBNull.Value));
                     command.Parameters.Add(new OracleParameter("p6", importanceLevel));
                     command.Parameters.Add(new OracleParameter("p7", priority));
                     command.Parameters.Add(new OracleParameter("p8", durumId ?? (object)DBNull.Value));
@@ -435,7 +442,86 @@ namespace KullanıcıWeb.Services
                     command.ExecuteNonQuery();
                 }
             }
+            if (personelDegistiMi && yeniAssignedUserId.HasValue && yeniAssignedUserId.Value > 0)
+            {
+               BildirimGonderArkaPlan(yeniAssignedUserId.Value, taskTitle, priority, importanceLevel, "İş Güncellendi Üstünüze İş Atandı");
+            }
         }
+
+
+        private void BildirimGonderArkaPlan(int userId, string taskTitle, string priority, string importanceLevel, string baslikTipi)
+        {
+            string connectionString = _configuration.GetConnectionString("OracleConnection")!;
+
+
+            string userQuery = "SELECT FIRST_NAME, LAST_NAME, EMAIL FROM HBK_KULLANICI_TABLE WHERE USER_ID = :p_user_id AND IS_ACTIVE = 'E'";
+
+            string userEmail = string.Empty;
+            string userFullName = string.Empty;
+            bool userFound = false;
+
+            // 1. ADIM: Veri tabanından kullanıcının e-posta ve isim bilgilerini okuyoruz
+            using (OracleConnection connection = new OracleConnection(connectionString))
+            using (OracleCommand command = new OracleCommand(userQuery, connection))
+            {
+                command.Parameters.Add(new OracleParameter("p_user_id", userId));
+
+                try
+                {
+                    connection.Open();
+                    using (OracleDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string firstName = reader["FIRST_NAME"]?.ToString() ?? "";
+                            string lastName = reader["LAST_NAME"]?.ToString() ?? "";
+                            userFullName = $"{firstName} {lastName}".Trim();
+
+                            userEmail = reader["EMAIL"] != DBNull.Value ? reader["EMAIL"].ToString()! : string.Empty;
+                            userFound = true;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+
+                    return;
+                }
+
+                if (userFound && !string.IsNullOrEmpty(userEmail))
+                {
+                    string subject = $"🔔 {baslikTipi}: {taskTitle}";
+
+                    string htmlBody = $@"
+                    <div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 5px;'>
+                        <h3 style='color: #2B3674;'>Merhaba {userFullName},</h3>
+                        <p>İş güncellemesi yapılmış üzerinize iş atanmıştır</p>
+                        <hr style='border: 0; border-top: 1px solid #eee;'/>
+                        <p><b>İşlem Tipi:</b> {baslikTipi}</p>
+                        <p><b>İş Başlığı:</b> {taskTitle}</p>
+                        <p><b>Öncelik Durumu:</b> {priority ?? "Düşük"}</p>
+                        <p><b>Önem Derecesi:</b> {importanceLevel ?? "Normal"}</p>
+                        <hr style='border: 0; border-top: 1px solid #eee;'/>
+                        <p>Detayları incelemek üzere sisteme giriş yapabilirsiniz.</p>
+                    </div>";
+
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _emailService.SendEmailAsync(userEmail, userFullName, subject, htmlBody);
+                        }
+                        catch (Exception)
+                        {
+
+                        }
+                    });
+                }
+            }
+        }
+
+
+
 
 
 

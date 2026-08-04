@@ -1,6 +1,7 @@
 using KullanıcıWeb.Services;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc;
+using KullanıcıWeb.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSession(options => {
@@ -10,7 +11,7 @@ builder.Services.AddSession(options => {
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 builder.Services.AddHttpContextAccessor();
-// 🎯 GLOBAL FİLTRE ENTEGRASYONU
+
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add<SessionKontrolFiltresi>();
@@ -18,7 +19,10 @@ builder.Services.AddControllersWithViews(options =>
 
 });
 
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
 builder.Services.AddScoped<IKullaniciService, KullaniciService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IIsTakipService, IsTakipService>();
 builder.Services.AddScoped<IProjeService, ProjeService>();
 builder.Services.AddScoped<IOrganizasyonService, OrganizasyonService>();
@@ -29,11 +33,9 @@ builder.Services.AddScoped<IPlanlamaService, PlanlamaService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -62,7 +64,7 @@ app.MapControllerRoute(
 
 app.Run();
 
-// Temiz bir yapı için Program.cs dosyasının en altına ekleyeceğimiz filtre sınıfı
+// program.cs dosyasının en altına ekleyeceğimiz filtre sınıfı
 public class SessionKontrolFiltresi : Microsoft.AspNetCore.Mvc.Filters.IActionFilter
 {
     public void OnActionExecuting(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext context)
@@ -70,7 +72,6 @@ public class SessionKontrolFiltresi : Microsoft.AspNetCore.Mvc.Filters.IActionFi
         var routeData = context.RouteData.Values;
         string currentController = routeData["controller"]?.ToString() ?? "";
 
-        // ⚠️ Giriş/Çıkış ekranlarında sonsuz döngü olmaması için kontrolü atla
         if (currentController.Equals("Account", System.StringComparison.OrdinalIgnoreCase))
         {
             return;

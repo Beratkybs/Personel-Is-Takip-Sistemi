@@ -9,6 +9,7 @@ ASP.NET Core MVC (.NET) ile geliştirilmiş, Oracle veritabanı üzerinde çalı
 - İlk girişte zorunlu şifre değiştirme akışı
 - SHA-256 ile şifre hashleme
 - Proje / iş takibi, kategori ve organizasyon yönetimi
+- Görev atama/güncelleme durumunda otomatik e-posta bildirimi (MailKit/SMTP)
 - Oracle veritabanı ile parametrik (SQL injection'a karşı korumalı) sorgular
 
 ## Teknoloji Yığını
@@ -17,6 +18,7 @@ ASP.NET Core MVC (.NET) ile geliştirilmiş, Oracle veritabanı üzerinde çalı
 - **Veritabanı:** Oracle (Oracle.ManagedDataAccess.Core)
 - **Frontend:** Razor Views, jQuery, jQuery Validation
 - **Auth:** Custom session tabanlı kimlik doğrulama (ASP.NET Identity kullanılmamıştır)
+- **E-posta:** MailKit / MimeKit (SMTP üzerinden bildirim gönderimi)
 
 ## Kurulum
 
@@ -37,6 +39,7 @@ ASP.NET Core MVC (.NET) ile geliştirilmiş, Oracle veritabanı üzerinde çalı
    ```bash
    cp appsettings.json.example appsettings.json
    ```
+  `EmailSettings` bölümünde `SmtpServer`, `Port`, `SenderEmail` ve `Password` alanlarını kendi SMTP sağlayıcınıza göre doldurun. Gmail kullanıyorsanız normal hesap şifreniz değil, [Google Hesap Uygulama Şifresi](https://support.google.com/accounts/answer/185833?hl=tr) kullanmanız gerekir (2 Adımlı Doğrulama açık olmalı).
 
 3. Veritabanınızda gerekli tabloyu oluşturun (bkz. [Veritabanı Şeması](#veritabanı-şeması)).
 
@@ -84,6 +87,19 @@ Bu sistemde **açık kayıt (self-registration) yoktur.** Tüm hesaplar admin ta
    - İlk şifreyi `ad.soyad123` formatında oluşturur (örn. `ahmet.yilmaz123`) ve hash'leyerek kaydeder
 4. Personel bu bilgilerle giriş yapar.
 5. İlk girişte sistem otomatik olarak **şifre değiştirme ekranına** yönlendirir; personel yeni bir şifre belirlemeden sisteme devam edemez.
+
+
+## E-posta Bildirimleri
+
+Sistem, aşağıdaki durumlarda ilgili personele otomatik e-posta gönderir:
+
+- Bir göreve yeni bir personel atandığında
+- Görev detaylarında güncelleme yapıldığında
+
+E-posta gönderimi asenkron (fire-and-forget) çalışır; SMTP sunucusuna ulaşılamasa veya gönderim başarısız olsa bile ana işlem (görev atama/güncelleme) etkilenmez, hata sessizce loglanır.
+
+E-posta ayarları `appsettings.json` içindeki `EmailSettings` bölümünden yapılandırılır (bkz. [Kurulum](#kurulum)).
+
 
 ## Veritabanı Şeması
 
